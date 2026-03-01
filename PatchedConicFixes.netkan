@@ -1,0 +1,22 @@
+{
+    "spec_version": "v1.4",
+    "$kref": "#/ckan/github/REPLACE_ME/PatchedConicFixes",
+    "name": "PatchedConicFixes",
+    "abstract": "Fixes issues with patched conic trajectories in KSP",
+    "author": [ "REPLACE_ME" ],
+    "license": "MIT",
+    "resources": {
+        "repository": "https://github.com/REPLACE_ME/PatchedConicFixes",
+        "bugtracker": "https://github.com/REPLACE_ME/PatchedConicFixes/issues"
+    },
+    "install": [
+        {
+            "find": "GameData",
+            "install_to": "GameData"
+        }
+    ],
+    "tags": [ "plugin" ],
+    "x_netkan_github": {
+        "use_source_archive": false
+    }
+}

@@ -1,0 +1,29 @@
+<Project>
+
+  <!--
+    Import user-local path overrides.
+    Create Source/Directory.Build.props.user (gitignored) with your machine's KSP paths:
+
+      <Project>
+        <PropertyGroup>
+          <KSPData>/your/path/KSP.app/Contents/Resources/Data</KSPData>
+          <KSPGameData>/your/path/GameData</KSPGameData>
+        </PropertyGroup>
+      </Project>
+
+    Mac:     ~/ksp/<version>/KSP.app/Contents/Resources/Data
+    Windows: C:\Program Files (x86)\Steam\steamapps\common\Kerbal Space Program\KSP_Data
+    Linux:   ~/.steam/steam/steamapps/common/Kerbal Space Program/KSP_Data
+  -->
+  <Import Project="Directory.Build.props.user" Condition="Exists('Directory.Build.props.user')" />
+
+  <Target Name="CheckKSPPaths" BeforeTargets="PrepareForBuild">
+    <Error
+      Condition="'$(KSPData)' == ''"
+      Text="KSPData is not set. Create Source/Directory.Build.props.user with your KSP install path. See Directory.Build.props for instructions." />
+    <Error
+      Condition="'$(KSPGameData)' == ''"
+      Text="KSPGameData is not set. Create Source/Directory.Build.props.user with your KSP install path. See Directory.Build.props for instructions." />
+  </Target>
+
+</Project>
