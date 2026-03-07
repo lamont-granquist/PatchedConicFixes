@@ -29,5 +29,4 @@ namespace PatchedConicFixes
 
         public static void Print(string message) => _instance.Value.PrintImpl(message);
     }
-
 }

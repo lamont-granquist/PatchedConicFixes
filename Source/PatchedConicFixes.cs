@@ -17,13 +17,6 @@ namespace PatchedConicFixes
             Logger.GlobalRegister(SafePrint);
         }
 
-        /*
-        private void Awake()
-        {
-            Logger.GlobalRegister(SafePrint);
-        }
-        */
-
         private void Start()
         {
             var harmony = new Harmony("PatchedConicFixes");
@@ -31,9 +24,6 @@ namespace PatchedConicFixes
             Debug.Log("[PatchedConicFixes] Harmony patches applied.");
         }
 
-        private void Update()
-        {
-            _dispatcher.ProcessActions();
-        }
+        private void Update() => _dispatcher.ProcessActions();
     }
 }

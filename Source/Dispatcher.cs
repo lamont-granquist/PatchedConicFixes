@@ -10,7 +10,10 @@ namespace PatchedConicFixes
         private readonly object _lockObject = new object();
         private readonly Queue  _actions    = new Queue();
 
-        public Dispatcher(Thread mainThread) => _mainThread = mainThread;
+        public Dispatcher(Thread mainThread)
+        {
+            _mainThread = mainThread;
+        }
 
         public void InvokeAsync(Action action)
         {
