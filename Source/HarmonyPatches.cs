@@ -3,6 +3,7 @@ using System.Threading;
 using HarmonyLib;
 using UnityEngine;
 
+// ReSharper disable ArrangeTypeModifiers
 // ReSharper disable UnusedMember.Local
 // ReSharper disable UnusedType.Global
 // ReSharper disable ArrangeTypeMemberModifiers
@@ -10,10 +11,50 @@ using UnityEngine;
 
 namespace PatchedConicFixes
 {
+
+	// Replaces PatchedConics._CheckEncounter entirely.
+	[HarmonyPatch(typeof(PatchedConics), nameof(PatchedConics._CheckEncounter))]
+	class PatchedConics__CheckEncounter
+	{
+		static bool Prefix(Orbit p, Orbit nextPatch, double startEpoch, OrbitDriver sec, CelestialBody targetBody, PatchedConics.SolverParameters pars, bool logErrors, ref bool __result)
+		{
+			__result = HarmonyPatches.CheckEncounter(p, nextPatch, startEpoch, sec, targetBody, pars, logErrors);
+
+			return false;
+		}
+	}
+
     // Replaces PatchedConics._GetClosestApproach entirely.
     [HarmonyPatch(typeof(PatchedConics), nameof(PatchedConics._GetClosestApproach))]
     class PatchedConics__GetClosestApproach
     {
+	    static bool Prefix(Orbit p, Orbit s, double startEpoch, double dT, PatchedConics.SolverParameters pars, ref double __result)
+	    {
+		    __result = HarmonyPatches.GetClosestApproach(p, s, startEpoch, dT, pars);
+
+		    return false;
+	    }
+    }
+
+    // Replaces Orbit._SolveClosestApproach entirely.
+    [HarmonyPatch(typeof(Orbit), nameof(Orbit._SolveClosestApproach))]
+    class Orbit__SolveClosestApproach
+    {
+	    static bool Prefix(Orbit p, Orbit s, ref double UT, double dT, double threshold, double MinUT, double MaxUT, double epsilon, int maxIterations, ref int iterationCount, ref double __result)
+        {
+	        __result = HarmonyPatches.SolveClosestApproach(p, s, ref UT, dT, threshold,  MinUT, MaxUT, epsilon, maxIterations, ref iterationCount);
+
+	        return false;
+        }
+    }
+
+    public static class HarmonyPatches
+    {
+	    public static string OrbitString(Orbit o)
+	    {
+		    return $"{o.inclination}, {o.eccentricity}, {o.semiMajorAxis}, {o.LAN}, {o.argumentOfPeriapsis}, {o.meanAnomalyAtEpoch}, {o.epoch}";
+	    }
+
 	    /// <summary>
 	    /// Finds the closest approach distance between two orbits within a bounded time window, using a
 	    /// BSP (Binary Space Partitioning) search in the time domain.
@@ -39,12 +80,9 @@ namespace PatchedConicFixes
 	    /// <param name="dT">Initial step size for the BSP solver. Passed through from the caller, typically
 	    /// half the time-to-transition to the nearest geometric intercept point.</param>
 	    /// <param name="pars">Solver parameters including iteration limits and convergence epsilon.</param>
-	    /// <param name="__result">The closest approach distance found within the search window.</param>
-	    /// <returns>Must return false to Harmony to replace original method.</returns>
-	    static bool Prefix(Orbit p, Orbit s, double startEpoch, double dT, PatchedConics.SolverParameters pars,
-	                       ref double __result)
+	    /// <returns>The closest approach distance found within the search window.</returns>
+	    public static double GetClosestApproach(Orbit p, Orbit s, double startEpoch, double dT, PatchedConics.SolverParameters pars)
         {
-	        Debug.Log("Calling our PatchedConics__GetClosestApproach!");
 			double MinUT;
 			double MaxUT;
 
@@ -96,16 +134,9 @@ namespace PatchedConicFixes
 			// 3D separation |p.position(UT) - s.position(UT)| at candidate times and converges on
 			// the minimum via ternary search / bisection. The result is written to p.UTappr (time)
 			// and returned as the distance.
-			__result = Orbit.SolveClosestApproach(p, s, ref p.UTappr, dT, 0.0, MinUT, MaxUT, pars.epsilon, pars.maxTimeSolverIterations, ref pars.TimeSolverIterations1);
-
-            return false; // skip original
+			return SolveClosestApproach(p, s, ref p.UTappr, dT, 0.0, MinUT, MaxUT, pars.epsilon, pars.maxTimeSolverIterations, ref pars.TimeSolverIterations1);
         }
-    }
 
-    // Replaces PatchedConics._CheckEncounter entirely.
-    [HarmonyPatch(typeof(PatchedConics), nameof(PatchedConics._CheckEncounter))]
-    class PatchedConics__CheckEncounter
-    {
 	    /// <summary>
 	    /// Determines whether the primary orbit encounters (enters the SOI of) the given celestial body.
 	    ///
@@ -149,17 +180,18 @@ namespace PatchedConicFixes
 	    /// approach markers even when no SOI encounter occurs.</param>
 	    /// <param name="pars">Solver parameters (iteration limits, epsilon, etc).</param>
 	    /// <param name="logErrors">If false, suppresses debug logging. Used by background thread callers.</param>
-	    /// <param name="__result">True if the primary orbit enters the body's SOI (and nextPatch has been populated
-	    /// with the post-transition orbit), false otherwise.</param>
-	    /// <returns>Must return false to Harmony to replace original method.</returns>
-	    static bool Prefix(Orbit p, Orbit nextPatch, double startEpoch, OrbitDriver sec, CelestialBody targetBody,
-	                       PatchedConics.SolverParameters pars, bool logErrors,
-	                       ref bool __result)
-        {
-	        Debug.Log("Calling our PatchedConics__CheckEncounter!");
+	    /// <returns>True if the primary orbit enters the body's SOI (and nextPatch has been populated
+	    /// with the post-transition orbit), false otherwise.</returns>
+	    public static bool CheckEncounter(Orbit p, Orbit nextPatch, double startEpoch, OrbitDriver sec, CelestialBody targetBody, PatchedConics.SolverParameters pars, bool logErrors)
+	    {
+		    Logger.Print($"Moon: {OrbitString(sec.orbit)}");
+		    Logger.Print($"Vessel: {OrbitString(p)} StartUT: {p.StartUT} EndUT: {p.EndUT}");
+		    Logger.Print($"startEpoch: {startEpoch}");
+
+		    /*
 	        try
-			{
-				Orbit s = sec.orbit;
+	        { */
+		        Orbit s = sec.orbit;
 
 				// --- Stage 1: Pe/Ap prefilter ---
 				// Quick rejection based on whether the radial extent of the two orbits overlap.
@@ -179,7 +211,6 @@ namespace PatchedConicFixes
 
 				if (!Orbit.PeApIntersects(p, s, sec.celestialBody.sphereOfInfluence * SoIbuffer))
 				{
-					__result = false;
 					return false;
 				}
 
@@ -188,7 +219,7 @@ namespace PatchedConicFixes
 				if (p.closestEncounterLevel < Orbit.EncounterSolutionLevel.ORBIT_INTERSECT)
 				{
 					p.closestEncounterLevel = Orbit.EncounterSolutionLevel.ORBIT_INTERSECT;
-					p.closestEncounterBody = sec.celestialBody;
+					p.closestEncounterBody  = sec.celestialBody;
 				}
 
 				// --- Stage 2: Geometric MOID solver ---
@@ -220,9 +251,39 @@ namespace PatchedConicFixes
 					{
 						Debug.Log("CheckEncounter: failed to find any intercepts at all");
 					}
-					__result = false;
 					return false;
 				}
+
+				/*
+				Vector3d r0 = p.getRelativePositionFromTrueAnomaly(FEVp);
+				Vector3d r1 = s.getRelativePositionFromTrueAnomaly(FEVs);
+				Vector3d v0 = p.getOrbitalVelocityAtTrueAnomaly(FEVp);
+				Vector3d v1 = s.getOrbitalVelocityAtTrueAnomaly(FEVs);
+
+				Vector3d dist = r0 - r1;
+
+				double dot0 = Vector3d.Dot(dist.normalized, v0.normalized);
+				double dot1 = Vector3d.Dot(dist.normalized, v1.normalized);
+
+				Debug.Log($"MOID check: reported={ClEctr1:F1} actual={dist.magnitude:F1} " +
+					$"dot0={dot0:F6} dot1={dot1:F6}");
+
+				if (num > 1)
+				{
+					Vector3d r02 = p.getRelativePositionFromTrueAnomaly(SEVp);
+					Vector3d r12 = s.getRelativePositionFromTrueAnomaly(SEVs);
+					Vector3d v02 = p.getOrbitalVelocityAtTrueAnomaly(SEVp);
+					Vector3d v12 = s.getOrbitalVelocityAtTrueAnomaly(SEVs);
+
+					Vector3d dist2 = r02 - r12;
+
+					double dot02 = Vector3d.Dot(dist2.normalized, v02.normalized);
+					double dot12 = Vector3d.Dot(dist2.normalized, v12.normalized);
+
+					Debug.Log($"MOID check2: reported={ClEctr2:F1} actual={dist2.magnitude:F1} " +
+						$"dot02={dot02:F6} dot12={dot12:F6}");
+				}
+				*/
 
 				// --- Stage 3: Time validation ---
 				// Convert the geometric true anomalies to universal times so we can check whether the
@@ -241,14 +302,12 @@ namespace PatchedConicFixes
 					{
 						Debug.Log("CheckEncounter: both intercept UTs are infinite");
 					}
-					__result = false;
 					return false;
 				}
 
 				// Reject if neither intercept falls within the patch's time bounds.
 				if ((ut1 < p.StartUT || ut1 > p.EndUT) && (ut2 < p.StartUT || ut2 > p.EndUT))
 				{
-					__result = false;
 					return false;
 				}
 
@@ -288,10 +347,10 @@ namespace PatchedConicFixes
 					if (GameSettings.ALWAYS_SHOW_TARGET_APPROACH_MARKERS && sec.celestialBody == targetBody)
 					{
 						p.UTappr = startEpoch;
-						p.ClAppr = PatchedConics.GetClosestApproach(p, s, startEpoch, p.nearestTT * 0.5, pars);
+						p.ClAppr = GetClosestApproach(p, s, startEpoch, p.nearestTT * 0.5, pars);
 						p.closestTgtApprUT = p.UTappr;
 					}
-					__result = false;
+
 					return false;
 				}
 
@@ -300,7 +359,7 @@ namespace PatchedConicFixes
 				if (p.closestEncounterLevel < Orbit.EncounterSolutionLevel.SOI_INTERSECT_1)
 				{
 					p.closestEncounterLevel = Orbit.EncounterSolutionLevel.SOI_INTERSECT_1;
-					p.closestEncounterBody = sec.celestialBody;
+					p.closestEncounterBody  = sec.celestialBody;
 				}
 
 				// Record transition data for both intercepts (used by orbit rendering and UI).
@@ -327,12 +386,11 @@ namespace PatchedConicFixes
 
 				// --- Try the first (earlier) intercept ---
 				p.UTappr = startEpoch;
-				p.ClAppr = PatchedConics.GetClosestApproach(p, s, startEpoch, p.nearestTT * 0.5, pars);
+				p.ClAppr = GetClosestApproach(p, s, startEpoch, p.nearestTT * 0.5, pars);
 
-				if (PatchedConics.EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
+				if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
 				{
-					__result = true;
-					return false;
+					return true;
 				}
 
 				// --- Try the second (later) intercept, if one exists ---
@@ -347,15 +405,14 @@ namespace PatchedConicFixes
 				if (num > 1)
 				{
 					p.closestEncounterLevel = Orbit.EncounterSolutionLevel.SOI_INTERSECT_2;
-					p.closestEncounterBody = sec.celestialBody;
+					p.closestEncounterBody  = sec.celestialBody;
 
 					p.UTappr = startEpoch + p.nearestTT;
-					p.ClAppr = PatchedConics.GetClosestApproach(p, s, startEpoch, (p.nextTT - p.nearestTT) * 0.5, pars);
+					p.ClAppr = GetClosestApproach(p, s, startEpoch, (p.nextTT - p.nearestTT) * 0.5, pars);
 
-					if (PatchedConics.EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
+					if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
 					{
-						__result = true;
-						return false;
+						return true;
 					}
 				}
 
@@ -366,25 +423,22 @@ namespace PatchedConicFixes
 					p.closestTgtApprUT = p.UTappr;
 				}
 
-				__result = false;
 				return false;
+				/*
 			}
+
 			catch (Exception value)
 			{
+
 				if (!Thread.CurrentThread.IsBackground)
 				{
 					Console.WriteLine(value);
 				}
-				__result = false;
 				return false;
 			}
+			*/
         }
-    }
 
-    // Replaces Orbit._SolveClosestApproach entirely.
-    [HarmonyPatch(typeof(Orbit), nameof(Orbit._SolveClosestApproach))]
-    class Orbit__SolveClosestApproach
-    {
 	    /// <summary>
 	    /// Finds the time of closest approach between two orbiting bodies using Halley's method
 	    /// on the range-rate function.
@@ -429,23 +483,17 @@ namespace PatchedConicFixes
 	    /// <param name="epsilon">Convergence threshold — iteration stops when |dT| &lt; epsilon.</param>
 	    /// <param name="maxIterations">Hard iteration cap across all phases combined.</param>
 	    /// <param name="iterationCount">On exit, the total number of state evaluations performed.</param>
-	    /// <param name="__result">The closest approach distance (magnitude of relative position), or -1.0 if the
-	    /// initial UT is outside [MinUT, MaxUT].</param>
-	    /// <returns>Must return false to Harmony to replace original method.</returns>
-	    static bool Prefix(Orbit p, Orbit s, ref double UT, double dT, double threshold, double MinUT, double MaxUT,
-	                       double epsilon, int maxIterations, ref int iterationCount,
-	                       ref double __result)
+	    /// <returns>The closest approach distance (magnitude of relative position), or -1.0 if the
+	    /// initial UT is outside [MinUT, MaxUT].</returns>
+	    public static double SolveClosestApproach(Orbit p, Orbit s, ref double UT, double dT, double threshold, double MinUT, double MaxUT, double epsilon, int maxIterations, ref int iterationCount)
         {
-	        Debug.Log("Calling our Orbit__SolveClosestApproach!");
 	        if (UT < MinUT)
 			{
-				__result = -1.0;
-				return false;
+				return -1.0;
 			}
 			if (UT > MaxUT)
 			{
-				__result = -1.0;
-				return false;
+				return -1.0;
 			}
 
 			Orbit.CASolutionState state = new Orbit.CASolutionState(p, s, dT);
@@ -532,8 +580,7 @@ namespace PatchedConicFixes
 				{
 					Debug.LogFormat("[Orbit] SolveClosestApproach: presolve took too many iterations, bailing UT:{0} MinUT:{1} MaxUT:{2}", UT, MinUT, MaxUT);
 				}
-				__result = state.rstate.pos.magnitude;
-				return false;
+				return state.rstate.pos.magnitude;
 			}
 
 			// --- Phase 2: Halley iteration ---
@@ -556,8 +603,7 @@ namespace PatchedConicFixes
 				{
 					UT = MinUT;
 					state.Update(UT, ref iterationCount, dump: true);
-					__result = state.rstate.pos.magnitude;
-					return false;
+					return state.rstate.pos.magnitude;
 				}
 
 				dT += state.MaxDT;
@@ -566,8 +612,7 @@ namespace PatchedConicFixes
 			{
 				UT = MaxUT;
 				state.Update(UT, ref iterationCount, dump: true);
-				__result =  state.rstate.pos.magnitude;
-				return false;
+				return state.rstate.pos.magnitude;
 			}
 
 			// Main Halley loop: iterate until the step size falls below epsilon.
@@ -584,8 +629,124 @@ namespace PatchedConicFixes
 				Debug.Log("[Orbit] SolveClosestApproach: solve took too many iterations, result incorrect");
 			}
 
-			__result =  state.rstate.pos.magnitude;
-			return false;
+			return state.rstate.pos.magnitude;
         }
+
+	    // _EncountersBody — PatchedConics.cs
+		//
+		// Called after GetClosestApproach has already refined p.UTappr and p.ClAppr for
+		// a specific intercept window.  This function decides whether that closest approach
+		// actually constitutes an SOI entry, and if so it pins down the exact SOI-crossing
+		// time, validates the approach direction, and commits the patch transition.
+		//
+		// Parameters:
+		//   p          — the spacecraft orbit being propagated (the "patch" under evaluation)
+		//   s          — the orbit of the candidate body (sec.orbit)
+		//   nextPatch  — the orbit object to be initialised if an encounter is confirmed
+		//   sec        — the OrbitDriver wrapping the candidate celestial body
+		//   startEpoch — the UT at which this patch begins
+		//   pars       — solver tuning parameters (iteration limits, epsilon, etc.)
+		//
+		// Returns true  → encounter confirmed; p and nextPatch have been fully committed.
+		// Returns false → no encounter this window.
+
+		internal static bool EncountersBody(Orbit p, Orbit s, Orbit nextPatch, OrbitDriver sec, double startEpoch, PatchedConics.SolverParameters pars)
+		{
+		    // -----------------------------------------------------------------------
+		    // GATE CHECK: is the closest approach distance inside the body's SoI?
+		    //
+		    // p.ClAppr is the scalar distance between the spacecraft and the body at
+		    // p.UTappr, as computed by the preceding GetClosestApproach call.
+		    // The sentinel value -1 means SolveClosestApproach failed to converge or
+		    // was not run; we must not treat that as "zero distance".
+		    // -----------------------------------------------------------------------
+		    if (p.ClAppr < sec.celestialBody.sphereOfInfluence && p.ClAppr != -1.0)
+		    {
+		        // -------------------------------------------------------------------
+		        // PHASE 1 — Bisect to the exact SOI crossing time.
+		        //
+		        // p.UTappr is the time of closest approach, which is already *inside*
+		        // the SoI.  We want the earlier moment when the spacecraft first
+		        // crossed the SoI boundary.
+		        //
+		        // SolveSOI uses binary-search / bisection (BSP variant removed in
+		        // -newer; plain SolveSOI used instead) over the interval
+		        // [startEpoch, p.UTappr].  The search half-width seed is
+		        // (p.UTappr - startEpoch) * 0.5, i.e. the midpoint of that interval,
+		        // which is a reasonable starting bracket.
+		        //
+		        // Result is written into p.UTsoi.
+		        // -------------------------------------------------------------------
+		        p.UTsoi = p.UTappr;   // initialise bisection anchor at closest approach
+		        Orbit.SolveSOI(
+		            p, s,
+		            ref p.UTsoi,                         // in/out: SOI crossing time
+		            (p.UTappr - startEpoch) * 0.5,       // initial search half-width
+		            sec.celestialBody.sphereOfInfluence, // target radius
+		            startEpoch,                          // search lower bound
+		            p.UTappr,                            // search upper bound
+		            pars.epsilon,                        // convergence tolerance
+		            pars.maxTimeSolverIterations,
+		            ref pars.TimeSolverIterations1);        // iteration counter (diagnostics)
+
+		        // -------------------------------------------------------------------
+		        // PHASE 2 — Validate approach direction at the SOI crossing time.
+		        //
+		        // SolveSOI can in principle converge on an *outbound* SOI crossing
+		        // (spacecraft leaving the body's vicinity) rather than an inbound one.
+		        // We reject that case by checking the sign of the radial velocity in
+		        // the body's reference frame.
+		        //
+		        // Relative position vector:  lhs = pos_spacecraft − pos_body
+		        // Relative velocity vector:  rhs = vel_spacecraft − vel_body
+		        //
+		        // Dot(lhs, rhs) > 0  →  spacecraft is moving away from the body
+		        //                        (outbound crossing — reject)
+		        // Dot(lhs, rhs) < 0  →  spacecraft is approaching the body
+		        //                        (inbound crossing — accept)
+		        // Dot(lhs, rhs) = 0  →  tangential; conservative choice is to reject
+		        // -------------------------------------------------------------------
+		        p.GetOrbitalStateVectorsAtUT(p.UTsoi, out var pos,  out var vel);
+		        s.GetOrbitalStateVectorsAtUT(p.UTsoi, out var pos2, out var vel2);
+
+		        Vector3d lhs = pos  - pos2;   // relative position (spacecraft w.r.t. body)
+		        Vector3d rhs = vel  - vel2;   // relative velocity
+
+		        if (Vector3d.Dot(lhs, rhs) >= 0.0)
+		        {
+		            // Moving apart at the alleged SOI crossing — this is an outbound
+		            // event (or we started inside the SoI on an escaping trajectory).
+		            // Discard; the caller may try the second intercept window.
+		            return false;
+		        }
+
+		        // -------------------------------------------------------------------
+		        // PHASE 3 — Commit the encounter.
+		        //
+		        // Everything checks out: the spacecraft enters the body's SoI at
+		        // p.UTsoi on an inbound trajectory.  Initialise the next patch to
+		        // represent the orbit in the body's reference frame starting at that
+		        // moment, then seal off the current patch at the SOI boundary.
+		        // -------------------------------------------------------------------
+
+		        // Build the next patch: orbit in sec's reference frame at p.UTsoi.
+		        nextPatch.UpdateFromOrbitAtUT(p, p.UTsoi, sec.celestialBody);
+
+		        // Seal the current patch: it runs from its start epoch to the SOI entry.
+		        p.StartUT = startEpoch;
+		        p.EndUT   = p.UTsoi;
+
+		        // Mark the transition type so the solver knows why this patch ended.
+		        p.patchEndTransition = Orbit.PatchTransitionType.ENCOUNTER;
+
+		        return true;
+		    }
+
+		    // -----------------------------------------------------------------------
+		    // Closest approach is outside the SoI (or ClAppr == -1 sentinel).
+		    // No encounter this window.
+		    // -----------------------------------------------------------------------
+		    return false;
+		}
     }
 }

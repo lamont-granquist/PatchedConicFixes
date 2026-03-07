@@ -14,9 +14,17 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 
-    <LangVersion>latest</LangVersion>
+    <LangVersion>8</LangVersion>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <!--
+    SDK-style projects glob **/*.cs, which would pull in Tests/ source files.
+    Exclude the test subdirectory from this project's compile items.
+  -->
+  <ItemGroup>
+    <Compile Remove="Tests/**" />
+  </ItemGroup>
 
   <!--
     Provides .NET Framework 4.8 reference assemblies when building on macOS/Linux

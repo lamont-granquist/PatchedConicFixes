@@ -5,6 +5,8 @@ VisualStudioVersion = 17.5.33516.290
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PatchedConicFixes", "Source\PatchedConicFixes.csproj", "{8F4A3D2C-1B5E-4F7A-9C0D-3E6B8A2F5D4C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PatchedConicFixes.Tests", "Source\Tests\PatchedConicFixes.Tests.csproj", "{C7E2F4A1-9D3B-4E8C-A5F0-6B1D3E7C9A2F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{8F4A3D2C-1B5E-4F7A-9C0D-3E6B8A2F5D4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8F4A3D2C-1B5E-4F7A-9C0D-3E6B8A2F5D4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8F4A3D2C-1B5E-4F7A-9C0D-3E6B8A2F5D4C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7E2F4A1-9D3B-4E8C-A5F0-6B1D3E7C9A2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7E2F4A1-9D3B-4E8C-A5F0-6B1D3E7C9A2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7E2F4A1-9D3B-4E8C-A5F0-6B1D3E7C9A2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7E2F4A1-9D3B-4E8C-A5F0-6B1D3E7C9A2F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
