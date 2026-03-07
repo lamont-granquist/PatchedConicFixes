@@ -20,13 +20,13 @@ namespace PatchedConicFixes.Tests
 
             (CelestialBody earth, CelestialBody moon) = Bodies.MakeEarthMoon();
 
-            var p         = new Orbit( 0.122026202733377, 0.971510969524243, 234243783.129783, 358.94830416185, 179.012674865338, 0.000732329708470401, 432322.256460584, earth);
+            var p = new Orbit(0.122026202733377, 0.971510969524243, 234243783.129783, 358.94830416185, 179.012674865338, 0.000732329708470401, 432322.256460584, earth);
             p.StartUT = 432322.256460584;
             p.EndUT   = 1560592.39540065;
             var nextPatch = new Orbit();
             var pars      = new PatchedConics.SolverParameters();
 
-            bool result = HarmonyPatches.CheckEncounter(p, nextPatch,  432322.256460584, moon.orbitDriver, moon, pars, false);
+            bool result = HarmonyPatches.CheckEncounter(p, nextPatch, 432322.256460584, moon.orbitDriver, moon, pars, false);
 
             Assert.True(result);
         }
