@@ -1,93 +1,93 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net48</TargetFramework>
-    <AssemblyName>PatchedConicFixes</AssemblyName>
-    <RootNamespace>PatchedConicFixes</RootNamespace>
+    <PropertyGroup>
+        <TargetFramework>net48</TargetFramework>
+        <AssemblyName>PatchedConicFixes</AssemblyName>
+        <RootNamespace>PatchedConicFixes</RootNamespace>
+
+        <!--
+          Output the DLL directly into the in-repo GameData folder.
+          KSP mods conventionally check compiled binaries into source control so
+          users can install without a build step.
+        -->
+        <OutputPath>../GameData/PatchedConicFixes/Plugins/</OutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+
+        <LangVersion>8</LangVersion>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
 
     <!--
-      Output the DLL directly into the in-repo GameData folder.
-      KSP mods conventionally check compiled binaries into source control so
-      users can install without a build step.
+      SDK-style projects glob **/*.cs, which would pull in Tests/ source files.
+      Exclude the test subdirectory from this project's compile items.
     -->
-    <OutputPath>../GameData/PatchedConicFixes/Plugins/</OutputPath>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <ItemGroup>
+        <Compile Remove="Tests/**"/>
+    </ItemGroup>
 
-    <LangVersion>8</LangVersion>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+    <!--
+      Provides .NET Framework 4.8 reference assemblies when building on macOS/Linux
+      without a full Mono installation. Build-time only; nothing is added to output.
+    -->
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All"/>
+    </ItemGroup>
 
-  <!--
-    SDK-style projects glob **/*.cs, which would pull in Tests/ source files.
-    Exclude the test subdirectory from this project's compile items.
-  -->
-  <ItemGroup>
-    <Compile Remove="Tests/**" />
-  </ItemGroup>
+    <!--
+      KSP and Unity references.
+      $(KSPData) is set in Directory.Build.props (or .user override).
+  
+      Private=false means these DLLs are NOT copied to the output directory;
+      they are already present in every KSP installation and must not be bundled
+      with the mod.
+    -->
+    <ItemGroup>
+        <Reference Include="Assembly-CSharp">
+            <HintPath>$(KSPData)/Managed/Assembly-CSharp.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
 
-  <!--
-    Provides .NET Framework 4.8 reference assemblies when building on macOS/Linux
-    without a full Mono installation. Build-time only; nothing is added to output.
-  -->
-  <ItemGroup>
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
-  </ItemGroup>
+        <Reference Include="UnityEngine">
+            <HintPath>$(KSPData)/Managed/UnityEngine.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
 
-  <!--
-    KSP and Unity references.
-    $(KSPData) is set in Directory.Build.props (or .user override).
+        <Reference Include="UnityEngine.CoreModule">
+            <HintPath>$(KSPData)/Managed/UnityEngine.CoreModule.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
 
-    Private=false means these DLLs are NOT copied to the output directory;
-    they are already present in every KSP installation and must not be bundled
-    with the mod.
-  -->
-  <ItemGroup>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>$(KSPData)/Managed/Assembly-CSharp.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+        <Reference Include="UnityEngine.UI">
+            <HintPath>$(KSPData)/Managed/UnityEngine.UI.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
 
-    <Reference Include="UnityEngine">
-      <HintPath>$(KSPData)/Managed/UnityEngine.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(KSPData)/Managed/UnityEngine.CoreModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-
-    <Reference Include="UnityEngine.UI">
-      <HintPath>$(KSPData)/Managed/UnityEngine.UI.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-  </ItemGroup>
-
-  <!--
-    Harmony 2.x — provided at runtime by the 000_Harmony mod in GameData.
-    $(KSPGameData) is set in Directory.Build.props (or .user override).
-    Private=false: do NOT bundle 0Harmony.dll in our output; 000_Harmony owns it.
-  -->
-  <ItemGroup>
-    <Reference Include="0Harmony">
-      <HintPath>$(KSPGameData)/000_Harmony/0Harmony.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-  </ItemGroup>
+    <!--
+      Harmony 2.x — provided at runtime by the 000_Harmony mod in GameData.
+      $(KSPGameData) is set in Directory.Build.props (or .user override).
+      Private=false: do NOT bundle 0Harmony.dll in our output; 000_Harmony owns it.
+    -->
+    <ItemGroup>
+        <Reference Include="0Harmony">
+            <HintPath>$(KSPGameData)/000_Harmony/0Harmony.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
 
 
-  <!--
-    Post-build: copy the compiled DLL into the live KSP installation so you can
-    launch KSP immediately after a build without a manual copy step.
-    $(KSPGameData) is defined in Directory.Build.props (or .user override).
-  -->
-  <Target Name="DeployToKSP" AfterTargets="Build">
-    <Copy
-      SourceFiles="$(OutputPath)$(AssemblyName).dll"
-      DestinationFolder="$(KSPGameData)/PatchedConicFixes/Plugins/"
-      SkipUnchangedFiles="true" />
-    <Message Importance="high" Text="Deployed $(AssemblyName).dll → $(KSPGameData)/PatchedConicFixes/Plugins/" />
-  </Target>
+    <!--
+      Post-build: copy the compiled DLL into the live KSP installation so you can
+      launch KSP immediately after a build without a manual copy step.
+      $(KSPGameData) is defined in Directory.Build.props (or .user override).
+    -->
+    <Target Name="DeployToKSP" AfterTargets="Build">
+        <Copy
+            SourceFiles="$(OutputPath)$(AssemblyName).dll"
+            DestinationFolder="$(KSPGameData)/PatchedConicFixes/Plugins/"
+            SkipUnchangedFiles="true"/>
+        <Message Importance="high" Text="Deployed $(AssemblyName).dll → $(KSPGameData)/PatchedConicFixes/Plugins/"/>
+    </Target>
 
 </Project>

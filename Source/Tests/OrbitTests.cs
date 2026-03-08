@@ -49,7 +49,7 @@ namespace PatchedConicFixes.Tests
 
             (CelestialBody earth, CelestialBody moon) = Bodies.MakeEarthMoon();
 
-            var p         = new Orbit(0.122026203095501, 0.971510969531635, 234243783.190063, 358.94830419701, 179.012674829019, 0.000723530899600804, 432320.676460583 , earth) { StartUT = 432320.676460583, EndUT = 1560590.81583617 };
+            var p         = new Orbit(0.122026203095501, 0.971510969531635, 234243783.190063, 358.94830419701, 179.012674829019, 0.000723530899600804, 432320.676460583, earth) { StartUT = 432320.676460583, EndUT = 1560590.81583617 };
             var nextPatch = new Orbit();
             var pars      = new PatchedConics.SolverParameters();
 

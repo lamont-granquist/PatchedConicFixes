@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.Serialization;
+using Object = UnityEngine.Object;
 
 namespace PatchedConicFixes.Tests
 {
@@ -10,7 +11,7 @@ namespace PatchedConicFixes.Tests
         // helper to fake the m_CachedPtr field off UnityEngine objects to make null checks work
         private static void SetCachedPtr(object obj)
         {
-            typeof(UnityEngine.Object)
+            typeof(Object)
                 .GetField("m_CachedPtr", BindingFlags.NonPublic | BindingFlags.Instance)!
                 .SetValue(obj, new IntPtr(1));
         }
