@@ -1,11 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.Serialization;
 
 namespace PatchedConicFixes.Tests
 {
     public static class Bodies
     {
+        // helper to fake the m_CachedPtr field off UnityEngine objects to make null checks work
+        private static void SetCachedPtr(object obj)
+        {
+            typeof(UnityEngine.Object)
+                .GetField("m_CachedPtr", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(obj, new IntPtr(1));
+        }
+
         public static (CelestialBody earth, CelestialBody moon) MakeEarthMoon() => MakeParentChild(3.9860043543609598e+14, 924649202.461023, 4.9028000661637961e+12, 66167158.6569544, 28.3626779079849, 0.0532814935368257, 384308437.770707, 2.29661616112602, 199.764093016082, 3.88686980063246, -31542641.784);
 
         public static (CelestialBody parent, CelestialBody child) MakeParentChild(
@@ -18,6 +27,9 @@ namespace PatchedConicFixes.Tests
 
             if (!(FormatterServices.GetUninitializedObject(typeof(OrbitDriver)) is OrbitDriver orbitDriver))
                 throw new InvalidOperationException("Failed to create OrbitDriver");
+
+            SetCachedPtr(orbitDriver);
+
             orbitDriver.orbit         = new Orbit(inc, e, sma, lan, argPe, mEp, epoch, parent);
             orbitDriver.celestialBody = child;
             child.orbitDriver         = orbitDriver;
@@ -31,6 +43,8 @@ namespace PatchedConicFixes.Tests
         {
             if (!(FormatterServices.GetUninitializedObject(typeof(CelestialBody)) is CelestialBody cb))
                 throw new InvalidOperationException("Failed to create CelestialBody");
+
+            SetCachedPtr(cb);
 
             cb.gravParameter     = mu;
             cb.sphereOfInfluence = soi;

@@ -183,14 +183,9 @@ namespace PatchedConicFixes
 	    /// <returns>True if the primary orbit enters the body's SOI (and nextPatch has been populated
 	    /// with the post-transition orbit), false otherwise.</returns>
 	    public static bool CheckEncounter(Orbit p, Orbit nextPatch, double startEpoch, OrbitDriver sec, CelestialBody targetBody, PatchedConics.SolverParameters pars, bool logErrors)
-	    {
-		    Logger.Print($"Moon: {OrbitString(sec.orbit)}");
-		    Logger.Print($"Vessel: {OrbitString(p)} StartUT: {p.StartUT} EndUT: {p.EndUT}");
-		    Logger.Print($"startEpoch: {startEpoch}");
-
-		    /*
+        {
 	        try
-	        { */
+	        {
 		        Orbit s = sec.orbit;
 
 				// --- Stage 1: Pe/Ap prefilter ---
@@ -254,7 +249,7 @@ namespace PatchedConicFixes
 					return false;
 				}
 
-				/*
+                /*
 				Vector3d r0 = p.getRelativePositionFromTrueAnomaly(FEVp);
 				Vector3d r1 = s.getRelativePositionFromTrueAnomaly(FEVs);
 				Vector3d v0 = p.getOrbitalVelocityAtTrueAnomaly(FEVp);
@@ -265,7 +260,7 @@ namespace PatchedConicFixes
 				double dot0 = Vector3d.Dot(dist.normalized, v0.normalized);
 				double dot1 = Vector3d.Dot(dist.normalized, v1.normalized);
 
-				Debug.Log($"MOID check: reported={ClEctr1:F1} actual={dist.magnitude:F1} " +
+				Logger.Print($"MOID check: reported={ClEctr1:F1} actual={dist.magnitude:F1} " +
 					$"dot0={dot0:F6} dot1={dot1:F6}");
 
 				if (num > 1)
@@ -280,7 +275,7 @@ namespace PatchedConicFixes
 					double dot02 = Vector3d.Dot(dist2.normalized, v02.normalized);
 					double dot12 = Vector3d.Dot(dist2.normalized, v12.normalized);
 
-					Debug.Log($"MOID check2: reported={ClEctr2:F1} actual={dist2.magnitude:F1} " +
+                    Logger.Print($"MOID check2: reported={ClEctr2:F1} actual={dist2.magnitude:F1} " +
 						$"dot02={dot02:F6} dot12={dot12:F6}");
 				}
 				*/
@@ -316,7 +311,7 @@ namespace PatchedConicFixes
 				// code can process them in chronological order. This ensures we always test the
 				// earlier encounter opportunity first.
 				if (ut2 < ut1 || ut1 < p.StartUT || ut1 > p.EndUT)
-				{
+                {
 					UtilMath.SwapValues(ref FEVp, ref SEVp);
 					UtilMath.SwapValues(ref FEVs, ref SEVs);
 					UtilMath.SwapValues(ref ClEctr1, ref ClEctr2);
@@ -385,8 +380,16 @@ namespace PatchedConicFixes
 				// the first intercept's encounter should be found.
 
 				// --- Try the first (earlier) intercept ---
-				p.UTappr = startEpoch;
-				p.ClAppr = GetClosestApproach(p, s, startEpoch, p.nearestTT * 0.5, pars);
+
+                // IMPORTANT FIX:  compute maximum allowed step size based on velocities of the orbits at the
+                // geometric MOID intersection point, and the size of the SOI.
+                double fVrel = (p.getOrbitalVelocityAtTrueAnomaly(FEVp)
+                    - s.getOrbitalVelocityAtTrueAnomaly(FEVs)).magnitude;
+                double fMaxDT = sec.celestialBody.sphereOfInfluence / fVrel;
+
+                // IMPORTANT FIX:  seed start time at exactly the geometric MOID point
+                p.UTappr = startEpoch + p.nearestTT;
+				p.ClAppr = GetClosestApproach(p, s, startEpoch, fMaxDT, pars);
 
 				if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
 				{
@@ -407,8 +410,15 @@ namespace PatchedConicFixes
 					p.closestEncounterLevel = Orbit.EncounterSolutionLevel.SOI_INTERSECT_2;
 					p.closestEncounterBody  = sec.celestialBody;
 
-					p.UTappr = startEpoch + p.nearestTT;
-					p.ClAppr = GetClosestApproach(p, s, startEpoch, (p.nextTT - p.nearestTT) * 0.5, pars);
+                    // IMPORTANT FIX:  compute maximum allowed step size based on velocities of the orbits at the
+                    // geometric MOID intersection point, and the size of the SOI.
+                    double sVrel = (p.getOrbitalVelocityAtTrueAnomaly(SEVp)
+                        - s.getOrbitalVelocityAtTrueAnomaly(SEVs)).magnitude;
+                    double sMaxDT = sec.celestialBody.sphereOfInfluence / sVrel;
+
+                    // IMPORTANT FIX:  seed start time at exactly the geometric MOID point
+                    p.UTappr = startEpoch + p.nextTT;
+					p.ClAppr = GetClosestApproach(p, s, startEpoch, sMaxDT, pars);
 
 					if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
 					{
@@ -424,7 +434,7 @@ namespace PatchedConicFixes
 				}
 
 				return false;
-				/*
+
 			}
 
 			catch (Exception value)
@@ -436,7 +446,6 @@ namespace PatchedConicFixes
 				}
 				return false;
 			}
-			*/
         }
 
 	    /// <summary>
