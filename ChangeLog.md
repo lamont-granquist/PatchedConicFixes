@@ -2,7 +2,14 @@
 
 ## 2026-03-08 - CheckEncounter() bug Fixes
 
-### `_CheckEncounter` (PatchedConics.cs)
+### `CheckEncounter` (PatchedConics.cs)
+
+Both of the GetClosestApproach()+EncountersBody() codepaths are now protected by checks against the SOI radius so that if there's no chance of an intercept then the check will not run.  If the always-show-markers config is set and the celestial is the target then the markers will now always show up.  This fixes always-show-markers as well to always
+do both checks and return the best one--and benefit from the initial guess fixes passed into GetClosestApproach().
+
+## 2026-03-08 - CheckEncounter() bug Fixes
+
+### `CheckEncounter` (PatchedConics.cs)
 
 Compute the maxDT bounds passed into GetClosestApproach() for use in the Halley solver based on the orbital velocities at the geometric MOID point and the sphereOfInfluence, and seed the Halley solver with the UT of the geometric MOID point.  The previous values were some strange guesses based on the previously used bisection method.
 

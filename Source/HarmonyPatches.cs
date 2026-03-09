@@ -186,6 +186,8 @@ namespace PatchedConicFixes
             {
                 Orbit s = sec.orbit;
 
+                bool alwaysShowMarkers = GameSettings.ALWAYS_SHOW_TARGET_APPROACH_MARKERS && sec.celestialBody == targetBody;
+
                 // --- Stage 1: Pe/Ap prefilter ---
                 // Quick rejection based on whether the radial extent of the two orbits overlap.
                 // If the primary's periapsis is above the secondary's apoapsis (plus SOI buffer),
@@ -197,15 +199,9 @@ namespace PatchedConicFixes
                 // This scaling reflects that for bodies with large orbits relative to their SOI (e.g.
                 // Jool), a wider search radius is needed to catch displayable near-misses.
                 double SoIbuffer = 1.1;
-                if (GameSettings.ALWAYS_SHOW_TARGET_APPROACH_MARKERS && sec.celestialBody == targetBody)
-                {
-                    SoIbuffer = Math.Sqrt(s.semiMajorAxis / sec.celestialBody.sphereOfInfluence);
-                }
 
-                if (!Orbit.PeApIntersects(p, s, sec.celestialBody.sphereOfInfluence * SoIbuffer))
-                {
+                if (!alwaysShowMarkers && !Orbit.PeApIntersects(p, s, sec.celestialBody.sphereOfInfluence * SoIbuffer))
                     return false;
-                }
 
                 // If we get past the Pe/Ap check, the orbits at least overlap radially — record this
                 // as the current best encounter solution level if nothing better has been found yet.
@@ -241,9 +237,7 @@ namespace PatchedConicFixes
                     // No intercepts found — this should only happen for perfectly circular coplanar
                     // orbits where the distance function has no local minimum (it's constant).
                     if (logErrors && !Thread.CurrentThread.IsBackground)
-                    {
                         Debug.Log("CheckEncounter: failed to find any intercepts at all");
-                    }
 
                     return false;
                 }
@@ -293,18 +287,14 @@ namespace PatchedConicFixes
                     // Both intercepts are at infinite time — can happen for degenerate geometries
                     // on hyperbolic orbits where the intercept true anomaly is beyond the asymptote.
                     if (logErrors && !Thread.CurrentThread.IsBackground)
-                    {
                         Debug.Log("CheckEncounter: both intercept UTs are infinite");
-                    }
 
                     return false;
                 }
 
                 // Reject if neither intercept falls within the patch's time bounds.
                 if ((ut1 < p.StartUT || ut1 > p.EndUT) && (ut2 < p.StartUT || ut2 > p.EndUT))
-                {
                     return false;
-                }
 
                 // Sort the two intercepts so that the first (FEV) is the earlier valid one. If the
                 // "first" intercept is actually later or out of bounds, swap the two so downstream
@@ -321,9 +311,7 @@ namespace PatchedConicFixes
 
                 // If the second intercept is out of bounds or infinite, reduce to single-intercept mode.
                 if (ut2 < p.StartUT || ut2 > p.EndUT || double.IsInfinity(ut2))
-                {
                     num = 1;
-                }
 
                 // At least one intercept is valid — commit the geometry results to the patch.
                 p.numClosePoints = num;
@@ -337,6 +325,7 @@ namespace PatchedConicFixes
                 // Check if the geometric closest distances are already beyond the body's SOI. If so,
                 // no encounter is possible, but we may still want to record the closest approach time
                 // for display purposes (target approach markers).
+                /*
                 if (Math.Min(p.ClEctr1, p.ClEctr2) > sec.celestialBody.sphereOfInfluence)
                 {
                     if (GameSettings.ALWAYS_SHOW_TARGET_APPROACH_MARKERS && sec.celestialBody == targetBody)
@@ -348,6 +337,7 @@ namespace PatchedConicFixes
 
                     return false;
                 }
+                */
 
                 // The geometric distances suggest an SOI encounter is plausible — upgrade the
                 // encounter solution level.
@@ -366,9 +356,7 @@ namespace PatchedConicFixes
                 p.nextTT                    = p.timeToTransition2;
 
                 if (double.IsNaN(p.nearestTT) && logErrors && !Thread.CurrentThread.IsBackground)
-                {
                     Debug.Log("nearestTT is NaN! t1: " + p.timeToTransition1 + ", t2: " + p.timeToTransition2 + ", FEVp: " + p.FEVp + ", SEVp: " + p.SEVp);
-                }
 
                 // --- Stage 4: Time-domain closest approach and SOI check ---
                 // For each valid geometric intercept, run the time-domain BSP solver to find the actual
@@ -381,19 +369,27 @@ namespace PatchedConicFixes
 
                 // --- Try the first (earlier) intercept ---
 
-                // IMPORTANT FIX:  compute maximum allowed step size based on velocities of the orbits at the
-                // geometric MOID intersection point, and the size of the SOI.
-                double fVrel = (p.getOrbitalVelocityAtTrueAnomaly(FEVp)
-                    - s.getOrbitalVelocityAtTrueAnomaly(FEVs)).magnitude;
-                double fMaxDT = sec.celestialBody.sphereOfInfluence / fVrel;
+                double bestClAppr = double.PositiveInfinity;
+                double bestUTappr = 0;
 
-                // IMPORTANT FIX:  seed start time at exactly the geometric MOID point
-                p.UTappr = startEpoch + p.nearestTT;
-                p.ClAppr = GetClosestApproach(p, s, startEpoch, fMaxDT, pars);
-
-                if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
+                if (alwaysShowMarkers || p.ClEctr1 < sec.celestialBody.sphereOfInfluence)
                 {
-                    return true;
+                    // IMPORTANT FIX:  compute maximum allowed step size based on velocities of the orbits at the
+                    // geometric MOID intersection point, and the size of the SOI.
+                    double fVrel = (p.getOrbitalVelocityAtTrueAnomaly(FEVp)
+                        - s.getOrbitalVelocityAtTrueAnomaly(FEVs)).magnitude;
+                    double fMaxDT = sec.celestialBody.sphereOfInfluence / fVrel;
+
+                    // IMPORTANT FIX:  seed start time at exactly the geometric MOID point
+                    p.UTappr = startEpoch + p.nearestTT;
+                    p.ClAppr = GetClosestApproach(p, s, startEpoch, fMaxDT, pars);
+
+                    if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
+                        return true;
+
+                    // if there's no encounter record closest encounter
+                    bestClAppr         = p.ClAppr;
+                    bestUTappr         = p.UTappr;
                 }
 
                 // --- Try the second (later) intercept, if one exists ---
@@ -407,31 +403,35 @@ namespace PatchedConicFixes
                 // encounter region.
                 if (num > 1)
                 {
-                    p.closestEncounterLevel = Orbit.EncounterSolutionLevel.SOI_INTERSECT_2;
-                    p.closestEncounterBody  = sec.celestialBody;
-
-                    // IMPORTANT FIX:  compute maximum allowed step size based on velocities of the orbits at the
-                    // geometric MOID intersection point, and the size of the SOI.
-                    double sVrel = (p.getOrbitalVelocityAtTrueAnomaly(SEVp)
-                        - s.getOrbitalVelocityAtTrueAnomaly(SEVs)).magnitude;
-                    double sMaxDT = sec.celestialBody.sphereOfInfluence / sVrel;
-
-                    // IMPORTANT FIX:  seed start time at exactly the geometric MOID point
-                    p.UTappr = startEpoch + p.nextTT;
-                    p.ClAppr = GetClosestApproach(p, s, startEpoch, sMaxDT, pars);
-
-                    if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
+                    if (alwaysShowMarkers || p.ClEctr2 < sec.celestialBody.sphereOfInfluence)
                     {
-                        return true;
+                        p.closestEncounterLevel = Orbit.EncounterSolutionLevel.SOI_INTERSECT_2;
+                        p.closestEncounterBody  = sec.celestialBody;
+
+                        // IMPORTANT FIX:  compute maximum allowed step size based on velocities of the orbits at the
+                        // geometric MOID intersection point, and the size of the SOI.
+                        double sVrel = (p.getOrbitalVelocityAtTrueAnomaly(SEVp)
+                            - s.getOrbitalVelocityAtTrueAnomaly(SEVs)).magnitude;
+                        double sMaxDT = sec.celestialBody.sphereOfInfluence / sVrel;
+
+                        // IMPORTANT FIX:  seed start time at exactly the geometric MOID point
+                        p.UTappr = startEpoch + p.nextTT;
+                        p.ClAppr = GetClosestApproach(p, s, startEpoch, sMaxDT, pars);
+
+                        if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
+                            return true;
+
+                        // if there's no encounter record closest encounter
+                        if (p.ClAppr < bestClAppr)
+                        {
+                            bestClAppr = p.ClAppr;
+                            bestUTappr = p.UTappr;
+                        }
                     }
                 }
 
-                // No SOI encounter at either intercept — record the closest approach time for the
-                // target body's approach marker display.
-                if (sec.celestialBody == targetBody)
-                {
-                    p.closestTgtApprUT = p.UTappr;
-                }
+                if (bestClAppr < double.PositiveInfinity)
+                    p.closestTgtApprUT = bestUTappr;
 
                 return false;
             }
