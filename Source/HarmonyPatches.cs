@@ -382,7 +382,7 @@ namespace PatchedConicFixes
 
                     // IMPORTANT FIX:  seed start time at exactly the geometric MOID point
                     p.UTappr = startEpoch + p.nearestTT;
-                    p.ClAppr = GetClosestApproach(p, s, startEpoch, fMaxDT, pars);
+                    p.ClAppr = GetClosestApproach(p, s, startEpoch, 0.5 * fMaxDT, pars);
 
                     if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
                         return true;
@@ -416,7 +416,7 @@ namespace PatchedConicFixes
 
                         // IMPORTANT FIX:  seed start time at exactly the geometric MOID point
                         p.UTappr = startEpoch + p.nextTT;
-                        p.ClAppr = GetClosestApproach(p, s, startEpoch, sMaxDT, pars);
+                        p.ClAppr = GetClosestApproach(p, s, startEpoch, 0.5 * sMaxDT, pars);
 
                         if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
                             return true;
