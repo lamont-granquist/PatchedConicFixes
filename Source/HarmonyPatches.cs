@@ -277,8 +277,18 @@ namespace PatchedConicFixes
                 // Convert the geometric true anomalies to universal times so we can check whether the
                 // intercepts actually fall within this patch's time bounds. A geometric intercept that
                 // occurs outside [StartUT, EndUT] is unreachable on this patch and must be discarded.
+
                 double tt1 = p.GetDTforTrueAnomaly(FEVp, 0.0); // delta-time from epoch to first intercept
                 double tt2 = p.GetDTforTrueAnomaly(SEVp, 0.0); // delta-time from epoch to second intercept
+
+                // properly wrap values and protect against https://github.com/KSPModdingLibs/KSPCommunityFixes/issues/258
+                if (p.eccentricity < 1.0)
+                {
+                    double period = p.period;
+                    tt1 -= period * Math.Floor(tt1 / period);
+                    tt2 -= period * Math.Floor(tt2 / period);
+                }
+
                 double ut1 = tt1 + startEpoch;                 // absolute UT of first intercept
                 double ut2 = tt2 + startEpoch;                 // absolute UT of second intercept
 
