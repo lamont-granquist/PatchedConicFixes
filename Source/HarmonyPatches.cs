@@ -51,87 +51,7 @@ namespace PatchedConicFixes
     {
         public static string OrbitString(Orbit o) => $"{o.inclination}, {o.eccentricity}, {o.semiMajorAxis}, {o.LAN}, {o.argumentOfPeriapsis}, {o.meanAnomalyAtEpoch}, {o.epoch}";
 
-        /// <summary>
-        ///     Finds the closest approach distance between two orbits within a bounded time window, using a
-        ///     BSP (Binary Space Partitioning) search in the time domain.
-        ///     The search window is determined by the primary orbit's type:
-        ///     - Elliptical (e &lt; 1): The entire orbital period is searched, since the vessel will revisit
-        ///     every point on the orbit. The window spans [startEpoch, startEpoch + period].
-        ///     - Hyperbolic (e ≥ 1): The orbit is open and extends to infinity, but the BSP solver cannot
-        ///     subdivide an infinite interval (inf/2 = inf, inf - inf = NaN). Instead, the search is
-        ///     bounded by computing the true anomaly at which the vessel reaches the reference body's SOI
-        ///     boundary, and converting that to a UT. Beyond the SOI the vessel will be on a different
-        ///     patch anyway, so searching further is pointless.
-        ///     - For hyperbolic orbits around the root body (infinite SOI), we use heuristic bounds: 3x the
-        ///     secondary body's SMA if it has a closed orbit, or pars.outerReaches as a last resort.
-        ///     The result is stored in p.UTappr (the UT of closest approach) and returned as p.ClAppr (the
-        ///     closest approach distance). These are used downstream by _EncountersBody to determine whether
-        ///     the vessel enters the secondary body's SOI.
-        /// </summary>
-        /// <param name="p">The primary orbit (vessel or patch being tested).</param>
-        /// <param name="s">The secondary orbit (celestial body being tested for encounter).</param>
-        /// <param name="startEpoch">The UT at the start of this patch — the earliest time to search.</param>
-        /// <param name="dT">
-        ///     Initial step size for the BSP solver. Passed through from the caller, typically
-        ///     half the time-to-transition to the nearest geometric intercept point.
-        /// </param>
-        /// <param name="pars">Solver parameters including iteration limits and convergence epsilon.</param>
-        /// <returns>The closest approach distance found within the search window.</returns>
-        public static double GetClosestApproach(Orbit p, Orbit s, double startEpoch, double dT, PatchedConics.SolverParameters pars)
-        {
-            double MinUT;
-            double MaxUT;
 
-            if (p.eccentricity < 1.0)
-            {
-                // Elliptical orbit: the vessel will traverse the entire orbit within one period,
-                // so search the full period starting from the patch epoch. This guarantees we don't
-                // miss an encounter that occurs late in the orbit.
-                MinUT = startEpoch;
-                MaxUT = startEpoch + p.period;
-            }
-            else
-            {
-                // Hyperbolic/parabolic orbit: the trajectory extends to infinity, but the BSP solver
-                // requires finite bounds. Compute the true anomaly at which the vessel reaches the
-                // outermost physically meaningful distance, then convert to UT for the search bound.
-                double AforSOI;
-
-                if (double.IsInfinity(p.referenceBody.sphereOfInfluence))
-                {
-                    // The reference body is the root body (e.g. the Sun in stock KSP) which has an
-                    // infinite SOI. We need a heuristic upper bound for the search.
-                    if (s.eccentricity < 1.0)
-                    {
-                        // The secondary body has a closed orbit, so there's no point searching beyond
-                        // roughly 3x its SMA — the vessel will be well past any possible encounter.
-                        AforSOI = p.TrueAnomalyAtRadius(s.semiMajorAxis * 3.0);
-                    }
-                    else
-                    {
-                        // Both orbits are open (e.g. an escape trajectory past an escaping body).
-                        // This case doesn't arise in stock KSP. Fall back to a very large distance.
-                        AforSOI = p.TrueAnomalyAtRadius(pars.outerReaches);
-                    }
-                }
-                else
-                {
-                    // Standard case: bound the search at the reference body's SOI. Beyond this the
-                    // vessel transitions to a different patch, so the current orbit is no longer valid.
-                    AforSOI = p.TrueAnomalyAtRadius(p.referenceBody.sphereOfInfluence);
-                }
-
-                double TforSOI = p.GetUTforTrueAnomaly(AforSOI, 0.0);
-                MinUT = startEpoch;
-                MaxUT = TforSOI;
-            }
-
-            // Run the BSP solver over the computed time window. SolveClosestApproach evaluates the
-            // 3D separation |p.position(UT) - s.position(UT)| at candidate times and converges on
-            // the minimum via ternary search / bisection. The result is written to p.UTappr (time)
-            // and returned as the distance.
-            return SolveClosestApproach(p, s, ref p.UTappr, dT, 0.0, MinUT, MaxUT, pars.epsilon, pars.maxTimeSolverIterations, ref pars.TimeSolverIterations1);
-        }
 
         /// <summary>
         ///     Determines whether the primary orbit encounters (enters the SOI of) the given celestial body.
@@ -462,6 +382,70 @@ namespace PatchedConicFixes
 
                 return false;
             }
+        }
+
+        /// <summary>
+        ///     Wrapper function around SolveClosestApproach() to determine the MinUT/MaxUT bounds for the
+        ///     the search.  This refines the geometric closest approach of the conic sections to the time domain
+        ///     closest approach of the actual two orbits.
+        ///
+        ///     The search window is determined by the primary orbit's type:
+        ///     - Elliptical: one full orbital period is searched [startEpoch, startEpoch + period].
+        ///     - Hyperbolic: if the orbit is bounded by exiting an SOI boundary, use the time of that SOI
+        ///     crossing as the upper limit.  If the parent is a root body without an SOI, then if the secondary
+        ///     is elliptical (Planet) cap the search to 3xSMA of the Moon.  If both orbits are hyperbolic
+        ///     ("Comet") then use an arbitrary upper limit based on the size of the solar system.
+        ///
+        ///     The result is stored in p.UTappr (the UT of closest approach) and Clappr value is returned (the
+        ///     closest approach distance). These are used downstream by EncountersBody() to find the SOI crossing
+        ///     given the closest time domain approach.
+        /// </summary>
+        /// <param name="p">The primary orbit (vessel orbit/patch being tested).</param>
+        /// <param name="s">The secondary orbit (celestial body being tested for encounter).</param>
+        /// <param name="startEpoch">The UT at the start of this patch — the earliest time to search.</param>
+        /// <param name="maxDT">Maximum clamp on the timestep that the Halley solver can take.</param>
+        /// <param name="pars">Solver parameters including iteration limits and convergence epsilon.</param>
+        /// <returns>The closest approach distance found within the search window.</returns>
+        public static double GetClosestApproach(Orbit p, Orbit s, double startEpoch, double maxDT, PatchedConics.SolverParameters pars)
+        {
+            double maxUT;
+
+            if (p.eccentricity < 1.0)
+            {
+                // Elliptical orbit: search one full period of the orbit.
+                maxUT = startEpoch + p.period;
+            }
+            else
+            {
+                // Vessel is on a hyperbolic orbit
+                double taForSOI;
+
+                // Handle the case where the reference body is the root (e.g. Kerbin/Sun)
+                if (double.IsInfinity(p.referenceBody.sphereOfInfluence))
+                {
+                    if (s.eccentricity < 1.0)
+                        // Transfer to a closed orbit (a Planet)
+                        // XXX: this function doesn't have access to the planet's SOI, just its orbit, so use 3*SMA rather than Apoapsis+SOI
+                        // (this should not be buggy and not important enough to change the method signature to fix)
+                        taForSOI = p.TrueAnomalyAtRadius(s.semiMajorAxis * 3.0);
+                    else
+                        // Both orbits are hyperbolic (transfer to a "Comet"):  Just use a very large distance.
+                        taForSOI = p.TrueAnomalyAtRadius(pars.outerReaches);
+                }
+                else
+                {
+                    // Ejection out of a Planet/Moon SOI: use the SOI transition as the natural end point of the search.
+                    taForSOI = p.TrueAnomalyAtRadius(p.referenceBody.sphereOfInfluence);
+                }
+
+                // Note that by accident or design TrueAnomalyAtRadius() always gives positive TA, so picks the departure
+                // hyperbola correctly, so once we're past this point, we're leaving forever...
+                double utForSOI = p.GetUTforTrueAnomaly(taForSOI, 0.0);
+                maxUT = utForSOI;
+            }
+
+            // Refine the geometric closest approach into the time domain closest approach using the bounds
+            return SolveClosestApproach(p, s, ref p.UTappr, maxDT, 0.0, startEpoch, maxUT, pars.epsilon, pars.maxTimeSolverIterations, ref pars.TimeSolverIterations1);
         }
 
         /// <summary>
