@@ -243,6 +243,13 @@ namespace PatchedConicFixes
                 }
 
                 /*
+                Logger.Print($"vessel: {OrbitString(p)}");
+                Logger.Print($"StartUT: {p.StartUT} EndUT: {p.EndUT}");
+                Logger.Print($"celestial: {OrbitString(sec.orbit)}");
+                Logger.Print($"parent mu: {sec.referenceBody.gravParameter} soi: {sec.referenceBody.sphereOfInfluence} ({sec.referenceBody.name})");
+                Logger.Print($"child mu: {sec.celestialBody.gravParameter} soi: {sec.celestialBody.sphereOfInfluence} ({sec.celestialBody.name})");
+                Logger.Print($"startEpoch: {startEpoch}");
+
                 Vector3d r0 = p.getRelativePositionFromTrueAnomaly(FEVp);
                 Vector3d r1 = s.getRelativePositionFromTrueAnomaly(FEVs);
                 Vector3d v0 = p.getOrbitalVelocityAtTrueAnomaly(FEVp);
@@ -697,7 +704,7 @@ namespace PatchedConicFixes
                 // Result is written into p.UTsoi.
                 // -------------------------------------------------------------------
                 p.UTsoi = p.UTappr; // initialise bisection anchor at closest approach
-                Orbit.SolveSOI(
+                Orbit.SolveSOI_BSP(
                     p, s,
                     ref p.UTsoi,                         // in/out: SOI crossing time
                     (p.UTappr - startEpoch) * 0.5,       // initial search half-width

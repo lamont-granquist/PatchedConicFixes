@@ -18,6 +18,8 @@ namespace PatchedConicFixes.Tests
 
         public static (CelestialBody earth, CelestialBody moon) MakeEarthMoon() => MakeParentChild(3.9860043543609598e+14, 924649202.461023, 4.9028000661637961e+12, 66167158.6569544, 28.3626779079849, 0.0532814935368257, 384308437.770707, 2.29661616112602, 199.764093016082, 3.88686980063246, -31542641.784);
 
+        public static (CelestialBody jool, CelestialBody tylo) MakeJoolTylo() => MakeParentChild(282528004209995, 2455985185.42347, 207481499473.751, 10856518.3683586, 0.025000000372529, 0, 68500000, 0, 0, 3.14000010490417, 0);
+
         public static (CelestialBody parent, CelestialBody child) MakeParentChild(
             double parentMu, double parentSoi,
             double childMu, double childSoi,
