@@ -1,6 +1,14 @@
 # Changelog
 
-## 2026-03-08 - CheckEncounter() bug Fixes
+## 2026-03-11 - EncountersBody() Bug Fix
+
+Revert from `SolveSOI()` to `SolveSOI_BSP()`.  The Newton's method solver in `SolveSOI()` has no protection against the derivative being near zero in a step, and it fails to converge, which causes known reported issues with encounters "flickering" and this has been confirmed to really solve an existing bug.  Maybe the Newton solver could be rescued, but bisection never fails.
+
+## 2026-03-11 - CheckEncounter() Bug Fix
+
+Properly ensure wrapping of GetDTforTrueAnomaly() return values onto [0,period].  This is clearly correct behavior and may fix bugs.
+
+## 2026-03-08 - CheckEncounter() Bug Fixes
 
 ### `CheckEncounter` (PatchedConics.cs)
 
