@@ -17,7 +17,8 @@ namespace PatchedConicFixes
     {
         static bool Prefix(Orbit p, Orbit nextPatch, double startEpoch, OrbitDriver sec, CelestialBody targetBody, PatchedConics.SolverParameters pars, bool logErrors, ref bool __result)
         {
-            __result = HarmonyPatches.CheckEncounter(p, nextPatch, startEpoch, sec, targetBody, pars, logErrors);
+            //__result = HarmonyPatches.CheckEncounter(p, nextPatch, startEpoch, sec, targetBody, pars, logErrors);
+            __result = HarmonyPatches.CheckEncounterOldMOID(p, nextPatch, startEpoch, sec, targetBody, pars, logErrors);
 
             return false;
         }
@@ -49,36 +50,26 @@ namespace PatchedConicFixes
 
     public static class HarmonyPatches
     {
+        public const double RAD_2_DEG = 180.0 / Math.PI;
+        public const double DEG_2_RAD = Math.PI / 180.0;
+
         public static string OrbitString(Orbit o) => $"{o.inclination}, {o.eccentricity}, {o.semiMajorAxis}, {o.LAN}, {o.argumentOfPeriapsis}, {o.meanAnomalyAtEpoch}, {o.epoch}";
-
-
 
         /// <summary>
         ///     Determines whether the primary orbit encounters (enters the SOI of) the given celestial body.
         ///     This is the main encounter detection entry point, implementing a multi-stage filter pipeline:
-        ///     Stage 1 — Pe/Ap prefilter: Checks whether the altitude bands of the two orbits overlap
-        ///     (with a buffer for the body's SOI radius). This is a cheap scalar comparison that eliminates
-        ///     obviously non-intersecting orbit pairs. For the targeted body, the buffer is widened using
-        ///     sqrt(SMA/SOI) so that approach markers can be shown even for near-miss trajectories.
-        ///     Stage 2 — Geometric MOID solver: Calls FindClosestPoints to find the one or two points on
+        ///     Stage 1: Pe/Ap prefilter: Checks whether the altitude bands of the two orbits overlap
+        ///     (with a buffer for the body's SOI radius). This is omitted when the target is selected.
+        ///     Stage 2: Geometric MOID solver: Calls FindClosestPoints to find the one or two points on
         ///     the orbits where the inter-orbit distance function has critical points (local minima). These
-        ///     are purely geometric — they identify WHERE on the orbits a close approach could occur,
+        ///     are purely geometric--they identify WHERE on the orbits a close approach could occur,
         ///     independent of when the bodies actually reach those points.
-        ///     Stage 3 — Time validation: Converts the geometric true anomalies to universal times and
-        ///     checks whether they fall within the current patch's time bounds [StartUT, EndUT]. Intercepts
-        ///     outside the patch are discarded. The remaining intercepts are sorted chronologically.
-        ///     Stage 4 — Time-domain closest approach: For each valid geometric intercept (up to two),
-        ///     runs the time-domain BSP solver (GetClosestApproach) seeded near that intercept to find the
+        ///     Stage 3: Validation of the critical points against the patch boundaries.
+        ///     Stage 4: Time-domain closest approach: For each valid geometric intercept (up to two),
+        ///     runs the time-domain Halley solver (GetClosestApproach) seeded at that intercept to find the
         ///     actual minimum separation accounting for both bodies' motion. If the closest approach is
         ///     within the body's SOI, calls EncountersBody to compute the SOI crossing time and generate
         ///     the next orbit patch.
-        ///     IMPORTANT: Both intercept points must be checked. The geometric solver finds critical points
-        ///     of the distance function between the two orbital paths, which typically yields two candidates
-        ///     on roughly opposite sides of the orbits. Which candidate produces an actual SOI encounter
-        ///     depends on the phasing of the bodies at the current epoch — information the geometry solver
-        ///     doesn't have. If only the first intercept is checked, encounters near the second intercept
-        ///     are silently missed, causing the well-known "phantom encounter flickering" bug where an
-        ///     encounter appears and disappears as the player adjusts a maneuver node.
         /// </summary>
         /// <param name="p">
         ///     The primary orbit (vessel patch being tested). Modified in place with encounter
@@ -86,7 +77,7 @@ namespace PatchedConicFixes
         /// </param>
         /// <param name="nextPatch">
         ///     The orbit object to populate with the post-encounter trajectory if an
-        ///     SOI transition occurs.
+        ///     SOI transition occurs.  Caller must provide a new Orbit.
         /// </param>
         /// <param name="startEpoch">The UT at the start of this patch.</param>
         /// <param name="sec">The OrbitDriver of the celestial body being tested for encounter.</param>
@@ -100,7 +91,7 @@ namespace PatchedConicFixes
         ///     True if the primary orbit enters the body's SOI (and nextPatch has been populated
         ///     with the post-transition orbit), false otherwise.
         /// </returns>
-        public static bool CheckEncounter(Orbit p, Orbit nextPatch, double startEpoch, OrbitDriver sec, CelestialBody targetBody, PatchedConics.SolverParameters pars, bool logErrors)
+        public static unsafe bool CheckEncounter(Orbit p, Orbit nextPatch, double startEpoch, OrbitDriver sec, CelestialBody targetBody, PatchedConics.SolverParameters pars, bool logErrors)
         {
             try
             {
@@ -108,107 +99,213 @@ namespace PatchedConicFixes
 
                 bool alwaysShowMarkers = GameSettings.ALWAYS_SHOW_TARGET_APPROACH_MARKERS && sec.celestialBody == targetBody;
 
-                // --- Stage 1: Pe/Ap prefilter ---
-                // Quick rejection based on whether the radial extent of the two orbits overlap.
-                // If the primary's periapsis is above the secondary's apoapsis (plus SOI buffer),
-                // or the primary's apoapsis is below the secondary's periapsis, there's no overlap
-                // and no encounter is possible.
-                //
-                // For the targeted body, the buffer is widened using sqrt(SMA/SOI) to ensure approach
-                // markers are displayed even for trajectories that come close without entering the SOI.
-                // This scaling reflects that for bodies with large orbits relative to their SOI (e.g.
-                // Jool), a wider search radius is needed to catch displayable near-misses.
+                /*
+                 * --- Stage 1: Pe/Ap prefilter ---
+                 * Quick rejection based on whether the radial extent of the two orbits overlap, unless we are always showing target markers.
+                 */
+
                 double SoIbuffer = 1.1;
 
                 if (!alwaysShowMarkers && !Orbit.PeApIntersects(p, s, sec.celestialBody.sphereOfInfluence * SoIbuffer))
                     return false;
 
-                // If we get past the Pe/Ap check, the orbits at least overlap radially — record this
-                // as the current best encounter solution level if nothing better has been found yet.
+                // these variables are almost entirely useless, and seem very useless now that this will trigger if alwaysShowMarkers is true
                 if (p.closestEncounterLevel < Orbit.EncounterSolutionLevel.ORBIT_INTERSECT)
                 {
                     p.closestEncounterLevel = Orbit.EncounterSolutionLevel.ORBIT_INTERSECT;
                     p.closestEncounterBody  = sec.celestialBody;
                 }
 
-                // --- Stage 2: Geometric MOID solver ---
-                // Find the critical points of the distance function between the two orbital paths.
-                // This is a purely geometric calculation — it finds the true anomaly values on each
-                // orbit where the inter-orbit distance is locally minimized (or maximized).
-                //
-                // The results are copied into local variables first to avoid overwriting a previously
-                // found valid encounter's data. If this candidate turns out to be invalid, the patch's
-                // existing encounter info is preserved.
-                //
-                // FindClosestPoints returns 1 or 2, indicating how many distinct close-approach
-                // regions were found. Typically there are two, on roughly opposite sides of the orbits.
-                // Returns 0 only for degenerate cases (coplanar circular orbits).
-                double ClEctr1 = p.ClEctr1; // closest distance at first intercept point
-                double ClEctr2 = p.ClEctr2; // closest distance at second intercept point
-                double FEVp    = p.FEVp;    // true anomaly on primary orbit at first intercept
-                double FEVs    = p.FEVs;    // true anomaly on secondary orbit at first intercept
-                double SEVp    = p.SEVp;    // true anomaly on primary orbit at second intercept
-                double SEVs    = p.SEVs;    // true anomaly on secondary orbit at second intercept
+                /*
+                 * --- Stage 2: Geometric MOID solver ---
+                 * This is now Baluev's solver and returns up to 4 minima (which should be as many as have ever been found?)
+                 */
 
-                int num = Orbit.FindClosestPoints(p, s, ref ClEctr1, ref ClEctr2, ref FEVp, ref FEVs, ref SEVp, ref SEVs, 0.0001, pars.maxGeometrySolverIterations, ref pars.GeoSolverIterations);
+                // a = semi-major axis, e = eccentricity, i = inclination,
+                // w = argument of periapsis, Om = longitude of ascending node
+                var o1 = new COrbitData(p.semiMajorAxis, p.eccentricity, p.inclination * DEG_2_RAD, p.argumentOfPeriapsis * DEG_2_RAD, p.LAN * DEG_2_RAD);
+                var o2 = new COrbitData(s.semiMajorAxis, s.eccentricity, s.inclination * DEG_2_RAD, s.argumentOfPeriapsis * DEG_2_RAD, s.LAN * DEG_2_RAD);
 
+                Baluev.MoidInfo* info = stackalloc Baluev.MoidInfo[4];
+
+                int num = Baluev.FindAllMinima(o1, o2, info);
+
+                /*
+                for (int i = 0; i < 4; i++)
+                    Logger.Print($"{num} {info[i].dst} {info[i].u1} {info[i].u2}"); */
+
+                // perfectly circular coplanar orbit check.
                 if (num < 1)
                 {
-                    // No intercepts found — this should only happen for perfectly circular coplanar
-                    // orbits where the distance function has no local minimum (it's constant).
                     if (logErrors && !Thread.CurrentThread.IsBackground)
                         Debug.Log("CheckEncounter: failed to find any intercepts at all");
 
                     return false;
                 }
 
-                /*
-                Logger.Print($"vessel: {OrbitString(p)}");
-                Logger.Print($"StartUT: {p.StartUT} EndUT: {p.EndUT}");
-                Logger.Print($"celestial: {OrbitString(sec.orbit)}");
-                Logger.Print($"parent mu: {sec.referenceBody.gravParameter} soi: {sec.referenceBody.sphereOfInfluence} ({sec.referenceBody.name})");
-                Logger.Print($"child mu: {sec.celestialBody.gravParameter} soi: {sec.celestialBody.sphereOfInfluence} ({sec.celestialBody.name})");
-                Logger.Print($"startEpoch: {startEpoch}");
+                // resolve the true anomalies for the primary
+                for (int i = 0; i < num; i++)
+                    info[i].ta1 = p.GetTrueAnomaly(info[i].u1);
 
-                Vector3d r0 = p.getRelativePositionFromTrueAnomaly(FEVp);
-                Vector3d r1 = s.getRelativePositionFromTrueAnomaly(FEVs);
-                Vector3d v0 = p.getOrbitalVelocityAtTrueAnomaly(FEVp);
-                Vector3d v1 = s.getOrbitalVelocityAtTrueAnomaly(FEVs);
+                // calculate the transit time
+                for (int i = 0; i < num; i++)
+                    info[i].tt = p.GetDTforTrueAnomaly(info[i].ta1, 0.0);
 
-                Vector3d dist = r0 - r1;
+                // fix the transit time for possible bugs in GetDTforTrueAnomaly()
+                if (p.eccentricity < 1.0)
+                    for (int i = 0; i < num; i++)
+                    {
+                        double period = p.period;
+                        info[i].tt -= period * Math.Floor(info[i].tt / period);
+                    }
 
-                double dot0 = Vector3d.Dot(dist.normalized, v0.normalized);
-                double dot1 = Vector3d.Dot(dist.normalized, v1.normalized);
-
-                Logger.Print($"MOID check: reported={ClEctr1:F1} actual={dist.magnitude:F1} " +
-                    $"dot0={dot0:F6} dot1={dot1:F6}");
-
-                if (num > 1)
+                // insertion sort by transit time
+                for (int i = 1; i < num; i++)
                 {
-                    Vector3d r02 = p.getRelativePositionFromTrueAnomaly(SEVp);
-                    Vector3d r12 = s.getRelativePositionFromTrueAnomaly(SEVs);
-                    Vector3d v02 = p.getOrbitalVelocityAtTrueAnomaly(SEVp);
-                    Vector3d v12 = s.getOrbitalVelocityAtTrueAnomaly(SEVs);
+                    Baluev.MoidInfo keyInfo = info[i];
 
-                    Vector3d dist2 = r02 - r12;
+                    int j = i - 1;
+                    while (j >= 0 && info[j].tt > keyInfo.tt)
+                    {
+                        info[j + 1] = info[j];
+                        j--;
+                    }
 
-                    double dot02 = Vector3d.Dot(dist2.normalized, v02.normalized);
-                    double dot12 = Vector3d.Dot(dist2.normalized, v12.normalized);
-
-                    Logger.Print($"MOID check2: reported={ClEctr2:F1} actual={dist2.magnitude:F1} " +
-                        $"dot02={dot02:F6} dot12={dot12:F6}");
+                    info[j + 1] = keyInfo;
                 }
-                */
 
-                // --- Stage 3: Time validation ---
-                // Convert the geometric true anomalies to universal times so we can check whether the
-                // intercepts actually fall within this patch's time bounds. A geometric intercept that
-                // occurs outside [StartUT, EndUT] is unreachable on this patch and must be discarded.
+                // resolve true anomalies for secondary
+                for (int i = 0; i < num; i++)
+                    info[i].ta2 = s.GetTrueAnomaly(info[i].u2);
 
-                double tt1 = p.GetDTforTrueAnomaly(FEVp, 0.0); // delta-time from epoch to first intercept
-                double tt2 = p.GetDTforTrueAnomaly(SEVp, 0.0); // delta-time from epoch to second intercept
+                // resolve UT of geometric point
+                for (int i = 0; i < num; i++)
+                    info[i].ut = startEpoch + info[i].tt;
 
-                // properly wrap values and protect against https://github.com/KSPModdingLibs/KSPCommunityFixes/issues/258
+                double bestClAppr = double.PositiveInfinity;
+                double bestUTappr = 0;
+
+                for (int i = 0; i < num; i++)
+                {
+                    if ((!alwaysShowMarkers && info[i].dst >= sec.celestialBody.sphereOfInfluence) || double.IsInfinity(info[i].ut))
+                        continue;
+                    if (CheckGeometricalEncounter(p, nextPatch, startEpoch, sec, pars, info[i], s, ref bestClAppr, ref bestUTappr))
+                        return true;
+                }
+
+                if (p.eccentricity < 1.0)
+                {
+                    // try wrapping around the end of the orbit to try the first MOID with a seed one period in the future.
+                    Baluev.MoidInfo wrappedInfo = info[0];
+                    wrappedInfo.tt += p.period;
+                    wrappedInfo.ut = startEpoch + wrappedInfo.tt;
+
+                    if ((alwaysShowMarkers || !(wrappedInfo.dst >= sec.celestialBody.sphereOfInfluence)) && !double.IsInfinity(wrappedInfo.ut))
+                    {
+                        if (CheckGeometricalEncounter(p, nextPatch, startEpoch, sec, pars, wrappedInfo, s, ref bestClAppr, ref bestUTappr))
+                            return true;
+                    }
+                }
+
+                if (bestClAppr < double.PositiveInfinity)
+                    p.closestTgtApprUT = bestUTappr;
+
+                return false;
+            }
+
+            catch (Exception value)
+            {
+                //Logger.Print($"{value}"); // TODO: remove this
+                if (!Thread.CurrentThread.IsBackground)
+                {
+                    Console.WriteLine(value);
+                }
+
+                return false;
+            }
+        }
+
+        private static bool CheckGeometricalEncounter(Orbit p, Orbit nextPatch, double startEpoch, OrbitDriver sec, PatchedConics.SolverParameters pars, Baluev.MoidInfo info, Orbit s, ref double bestClAppr, ref double bestUTappr)
+        {
+            // These APIs seem to be almost entirely unused throughout the stock codebase.  We never set
+            // SOI_INTERSECT_2 here because that is tightly coupled to the idea of only have 2 possible minima.
+            if (p.closestEncounterLevel < Orbit.EncounterSolutionLevel.SOI_INTERSECT_1)
+            {
+                p.closestEncounterLevel = Orbit.EncounterSolutionLevel.SOI_INTERSECT_1;
+                p.closestEncounterBody  = sec.celestialBody;
+            }
+
+            // estimate how long it takes to cross the SOI
+            double vrel  = (p.getOrbitalVelocityAtTrueAnomaly(info.ta1) - s.getOrbitalVelocityAtTrueAnomaly(info.ta2)).magnitude;
+            double maxDT = sec.celestialBody.sphereOfInfluence / vrel;
+
+            p.UTappr = info.ut;
+            p.ClAppr = GetClosestApproach(p, s, startEpoch, maxDT, pars);
+
+            // These APIs seem entire unused by stock code and tightly coupled to the idea of only having 2 minima points, so just
+            // consistently fill them with the best approach data.  If this is ever found to be buggy with some mod we can figure out
+            // what it expects these to have when there's 2, 3 or 4 minima.
+            if (p.ClAppr < bestClAppr)
+            {
+                p.timeToTransition1         = info.tt;
+                p.secondaryPosAtTransition1 = s.getPositionAtUT(info.ut);
+                p.timeToTransition2         = info.tt;
+                p.secondaryPosAtTransition2 = p.secondaryPosAtTransition1;
+                p.nearestTT                 = info.tt;
+                p.nextTT                    = info.tt;
+                bestClAppr                  = p.ClAppr;
+                bestUTappr                  = p.UTappr;
+            }
+
+            if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
+                return true;
+
+            return false;
+        }
+
+        // This is the CheckEncounter solver running against the old MOID Solver, but with considerable bugfixing.  It is close
+        // to the best accuracy the old MOID solver could get, but it still has bugs in the prefiltering based on the MOID time.
+        public static bool CheckEncounterOldMOID(Orbit p, Orbit nextPatch, double startEpoch, OrbitDriver sec, CelestialBody targetBody, PatchedConics.SolverParameters pars, bool logErrors)
+        {
+            try
+            {
+                Orbit s = sec.orbit;
+
+                bool alwaysShowMarkers = GameSettings.ALWAYS_SHOW_TARGET_APPROACH_MARKERS && sec.celestialBody == targetBody;
+
+                double SoIbuffer = 1.1;
+
+                if (!alwaysShowMarkers && !Orbit.PeApIntersects(p, s, sec.celestialBody.sphereOfInfluence * SoIbuffer))
+                    return false;
+
+                if (p.closestEncounterLevel < Orbit.EncounterSolutionLevel.ORBIT_INTERSECT)
+                {
+                    p.closestEncounterLevel = Orbit.EncounterSolutionLevel.ORBIT_INTERSECT;
+                    p.closestEncounterBody  = sec.celestialBody;
+                }
+
+                double ClEctr1 = p.ClEctr1;
+                double ClEctr2 = p.ClEctr2;
+                double FEVp    = p.FEVp;
+                double FEVs    = p.FEVs;
+                double SEVp    = p.SEVp;
+                double SEVs    = p.SEVs;
+
+                int num = Orbit.FindClosestPoints(p, s, ref ClEctr1, ref ClEctr2, ref FEVp, ref FEVs, ref SEVp, ref SEVs, 0.0001, pars.maxGeometrySolverIterations, ref pars.GeoSolverIterations);
+
+                //Logger.Print($"ClEctr1: {ClEctr1} ClEctr2: {ClEctr2} FEVp: {FEVp} FEVs: {FEVs} SEVp: {SEVp} SEVs: {SEVs}");
+
+                if (num < 1)
+                {
+                    if (logErrors && !Thread.CurrentThread.IsBackground)
+                        Debug.Log("CheckEncounter: failed to find any intercepts at all");
+
+                    return false;
+                }
+
+                double tt1 = p.GetDTforTrueAnomaly(FEVp, 0.0);
+                double tt2 = p.GetDTforTrueAnomaly(SEVp, 0.0);
+
                 if (p.eccentricity < 1.0)
                 {
                     double period = p.period;
@@ -216,27 +313,21 @@ namespace PatchedConicFixes
                     tt2 -= period * Math.Floor(tt2 / period);
                 }
 
-                double ut1 = tt1 + startEpoch;                 // absolute UT of first intercept
-                double ut2 = tt2 + startEpoch;                 // absolute UT of second intercept
+                double ut1 = tt1 + startEpoch;
+                double ut2 = tt2 + startEpoch;
 
                 if (double.IsInfinity(ut1) && double.IsInfinity(ut2))
                 {
-                    // Both intercepts are at infinite time — can happen for degenerate geometries
-                    // on hyperbolic orbits where the intercept true anomaly is beyond the asymptote.
                     if (logErrors && !Thread.CurrentThread.IsBackground)
                         Debug.Log("CheckEncounter: both intercept UTs are infinite");
 
                     return false;
                 }
 
-                // Reject if neither intercept falls within the patch's time bounds.
+                // XXX: This version still does known buggy pre-filtering based on the geometric time.
                 if ((ut1 < p.StartUT || ut1 > p.EndUT) && (ut2 < p.StartUT || ut2 > p.EndUT))
                     return false;
 
-                // Sort the two intercepts so that the first (FEV) is the earlier valid one. If the
-                // "first" intercept is actually later or out of bounds, swap the two so downstream
-                // code can process them in chronological order. This ensures we always test the
-                // earlier encounter opportunity first.
                 if (ut2 < ut1 || ut1 < p.StartUT || ut1 > p.EndUT)
                 {
                     UtilMath.SwapValues(ref FEVp, ref SEVp);
@@ -246,11 +337,9 @@ namespace PatchedConicFixes
                     UtilMath.SwapValues(ref ut1, ref ut2);
                 }
 
-                // If the second intercept is out of bounds or infinite, reduce to single-intercept mode.
                 if (ut2 < p.StartUT || ut2 > p.EndUT || double.IsInfinity(ut2))
                     num = 1;
 
-                // At least one intercept is valid — commit the geometry results to the patch.
                 p.numClosePoints = num;
                 p.FEVp           = FEVp;
                 p.FEVs           = FEVs;
@@ -259,32 +348,12 @@ namespace PatchedConicFixes
                 p.ClEctr1        = ClEctr1;
                 p.ClEctr2        = ClEctr2;
 
-                // Check if the geometric closest distances are already beyond the body's SOI. If so,
-                // no encounter is possible, but we may still want to record the closest approach time
-                // for display purposes (target approach markers).
-                /*
-                if (Math.Min(p.ClEctr1, p.ClEctr2) > sec.celestialBody.sphereOfInfluence)
-                {
-                    if (GameSettings.ALWAYS_SHOW_TARGET_APPROACH_MARKERS && sec.celestialBody == targetBody)
-                    {
-                        p.UTappr           = startEpoch;
-                        p.ClAppr           = GetClosestApproach(p, s, startEpoch, p.nearestTT * 0.5, pars);
-                        p.closestTgtApprUT = p.UTappr;
-                    }
-
-                    return false;
-                }
-                */
-
-                // The geometric distances suggest an SOI encounter is plausible — upgrade the
-                // encounter solution level.
                 if (p.closestEncounterLevel < Orbit.EncounterSolutionLevel.SOI_INTERSECT_1)
                 {
                     p.closestEncounterLevel = Orbit.EncounterSolutionLevel.SOI_INTERSECT_1;
                     p.closestEncounterBody  = sec.celestialBody;
                 }
 
-                // Record transition data for both intercepts (used by orbit rendering and UI).
                 p.timeToTransition1         = tt1;
                 p.secondaryPosAtTransition1 = s.getPositionAtUT(ut1);
                 p.timeToTransition2         = tt2;
@@ -295,49 +364,25 @@ namespace PatchedConicFixes
                 if (double.IsNaN(p.nearestTT) && logErrors && !Thread.CurrentThread.IsBackground)
                     Debug.Log("nearestTT is NaN! t1: " + p.timeToTransition1 + ", t2: " + p.timeToTransition2 + ", FEVp: " + p.FEVp + ", SEVp: " + p.SEVp);
 
-                // --- Stage 4: Time-domain closest approach and SOI check ---
-                // For each valid geometric intercept, run the time-domain BSP solver to find the actual
-                // minimum 3D separation (accounting for both bodies' orbital motion), then check whether
-                // that closest approach falls within the body's SOI.
-                //
-                // The initial guess for the solver (p.UTappr) is set to startEpoch, and the step size
-                // (dT) is set to half the time-to-transition. This seeds the solver in a region where
-                // the first intercept's encounter should be found.
-
-                // --- Try the first (earlier) intercept ---
-
                 double bestClAppr = double.PositiveInfinity;
                 double bestUTappr = 0;
 
                 if (alwaysShowMarkers || p.ClEctr1 < sec.celestialBody.sphereOfInfluence)
                 {
-                    // IMPORTANT FIX:  compute maximum allowed step size based on velocities of the orbits at the
-                    // geometric MOID intersection point, and the size of the SOI.
                     double fVrel = (p.getOrbitalVelocityAtTrueAnomaly(FEVp)
                         - s.getOrbitalVelocityAtTrueAnomaly(FEVs)).magnitude;
                     double fMaxDT = sec.celestialBody.sphereOfInfluence / fVrel;
 
-                    // IMPORTANT FIX:  seed start time at exactly the geometric MOID point
                     p.UTappr = startEpoch + p.nearestTT;
                     p.ClAppr = GetClosestApproach(p, s, startEpoch, 0.5 * fMaxDT, pars);
 
                     if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
                         return true;
 
-                    // if there's no encounter record closest encounter
-                    bestClAppr         = p.ClAppr;
-                    bestUTappr         = p.UTappr;
+                    bestClAppr = p.ClAppr;
+                    bestUTappr = p.UTappr;
                 }
 
-                // --- Try the second (later) intercept, if one exists ---
-                // This is critical: the two geometric intercepts represent fundamentally different
-                // regions of the orbit pair where an encounter can occur. The first intercept may fail
-                // to produce an SOI encounter because the bodies are out of phase at that point in their
-                // orbits, while the second intercept may succeed (or vice versa). Both must be checked.
-                //
-                // The solver is re-seeded with UTappr at the first intercept time, and the step size
-                // spans the gap between the two intercepts, directing the search toward the second
-                // encounter region.
                 if (num > 1)
                 {
                     if (alwaysShowMarkers || p.ClEctr2 < sec.celestialBody.sphereOfInfluence)
@@ -345,20 +390,16 @@ namespace PatchedConicFixes
                         p.closestEncounterLevel = Orbit.EncounterSolutionLevel.SOI_INTERSECT_2;
                         p.closestEncounterBody  = sec.celestialBody;
 
-                        // IMPORTANT FIX:  compute maximum allowed step size based on velocities of the orbits at the
-                        // geometric MOID intersection point, and the size of the SOI.
                         double sVrel = (p.getOrbitalVelocityAtTrueAnomaly(SEVp)
                             - s.getOrbitalVelocityAtTrueAnomaly(SEVs)).magnitude;
                         double sMaxDT = sec.celestialBody.sphereOfInfluence / sVrel;
 
-                        // IMPORTANT FIX:  seed start time at exactly the geometric MOID point
                         p.UTappr = startEpoch + p.nextTT;
                         p.ClAppr = GetClosestApproach(p, s, startEpoch, 0.5 * sMaxDT, pars);
 
                         if (EncountersBody(p, s, nextPatch, sec, startEpoch, pars))
                             return true;
 
-                        // if there's no encounter record closest encounter
                         if (p.ClAppr < bestClAppr)
                         {
                             bestClAppr = p.ClAppr;
@@ -386,16 +427,14 @@ namespace PatchedConicFixes
 
         /// <summary>
         ///     Wrapper function around SolveClosestApproach() to determine the MinUT/MaxUT bounds for the
-        ///     the search.  This refines the geometric closest approach of the conic sections to the time domain
-        ///     closest approach of the actual two orbits.
-        ///
+        ///     the search.  This ultimately refines the geometric closest approach of the conic sections to
+        ///     the actual time domain closest approach of the two orbits.
         ///     The search window is determined by the primary orbit's type:
         ///     - Elliptical: one full orbital period is searched [startEpoch, startEpoch + period].
         ///     - Hyperbolic: if the orbit is bounded by exiting an SOI boundary, use the time of that SOI
         ///     crossing as the upper limit.  If the parent is a root body without an SOI, then if the secondary
         ///     is elliptical (Planet) cap the search to 3xSMA of the Moon.  If both orbits are hyperbolic
         ///     ("Comet") then use an arbitrary upper limit based on the size of the solar system.
-        ///
         ///     The result is stored in p.UTappr (the UT of closest approach) and Clappr value is returned (the
         ///     closest approach distance). These are used downstream by EncountersBody() to find the SOI crossing
         ///     given the closest time domain approach.
@@ -448,6 +487,13 @@ namespace PatchedConicFixes
             return SolveClosestApproach(p, s, ref p.UTappr, maxDT, 0.0, startEpoch, maxUT, pars.epsilon, pars.maxTimeSolverIterations, ref pars.TimeSolverIterations1);
         }
 
+        static (double r, double rdv) GetRdvAtUT(Orbit p, Orbit s, double ut)
+        {
+            p.GetOrbitalStateVectorsAtUT(ut, out Vector3d pPos, out Vector3d pVel);
+            s.GetOrbitalStateVectorsAtUT(ut, out Vector3d sPos, out Vector3d sVel);
+            return ((pPos - sPos).magnitude, Vector3d.Dot(pVel - sVel, pPos - sPos));
+        }
+
         /// <summary>
         ///     Finds the time of closest approach between two orbiting bodies using Halley's method
         ///     on the range-rate function.
@@ -475,163 +521,151 @@ namespace PatchedConicFixes
         /// </summary>
         /// <param name="p">Primary orbit (vessel).</param>
         /// <param name="s">Secondary orbit (celestial body).</param>
-        /// <param name="UT">
+        /// <param name="ut">
         ///     On entry, the initial guess for the time of closest approach.
         ///     On exit, the converged UT of the closest approach found.
         /// </param>
-        /// <param name="dT">
-        ///     Initial step size for the presolve phase. Typically half the
-        ///     time-to-transition from the geometric intercept.
-        /// </param>
-        /// <param name="threshold">Unused in current implementation (reserved).</param>
-        /// <param name="MinUT">Earliest allowed UT (start of the current patch).</param>
-        /// <param name="MaxUT">Latest allowed UT (end of the search window).</param>
+        /// <param name="maxDT">Maximum clamp on the timestep that the Halley solver can take.</param>
+        /// <param name="threshold">Unused (from previous bisection implementation)</param>
+        /// <param name="minUT">Earliest allowed UT (start of the current patch).</param>
+        /// <param name="maxUT">Latest allowed UT (end of the search window).</param>
         /// <param name="epsilon">Convergence threshold — iteration stops when |dT| &lt; epsilon.</param>
         /// <param name="maxIterations">Hard iteration cap across all phases combined.</param>
         /// <param name="iterationCount">On exit, the total number of state evaluations performed.</param>
         /// <returns>
-        ///     The closest approach distance (magnitude of relative position), or -1.0 if the
-        ///     initial UT is outside [MinUT, MaxUT].
+        ///     The closest approach distance (magnitude of relative position)
         /// </returns>
-        public static double SolveClosestApproach(Orbit p, Orbit s, ref double UT, double dT, double threshold, double MinUT, double MaxUT, double epsilon, int maxIterations, ref int iterationCount)
+        public static double SolveClosestApproach(Orbit p, Orbit s, ref double ut, double maxDT, double threshold, double minUT, double maxUT, double epsilon, int maxIterations, ref int iterationCount)
         {
-            if (UT < MinUT)
-            {
-                return -1.0;
-            }
+            /*
+             * Establish a bracket
+             */
 
-            if (UT > MaxUT)
-            {
-                return -1.0;
-            }
-
-            var state = new Orbit.CASolutionState(p, s, dT);
             iterationCount = 0;
 
-            // Evaluate the range-rate function and its derivatives at the initial guess.
-            state.Update(UT, ref iterationCount);
+            (double r, double rdv) = GetRdvAtUT(p, s, ut);
+            int startSign = Math.Sign(rdv);
 
-            // Handle the case where the target body is ahead of us along the orbit (dot(r, v_ship) < 0)
-            // but we're receding (rdv > 0) with increasing recession rate (drdv > 0). This means we're
-            // on the far side of a distance maximum — the closest approach is behind us in time.
-            // Take a Newton step backward on rdv to get into the neighborhood of the minimum.
-            if (state.targetAhead && state.rdv > 0.0 && state.drdv > 0.0)
+            double step = maxDT / 8;
+
+            iterationCount = 0;
+
+            double bracketHi = double.NaN;
+            double bracketLo = double.NaN;
+
+            double probe = ut, probe1 = ut, probe2 = ut;
+            while (true)
             {
-                dT =  -state.rdv / state.drdv;
-                dT =  Math.Max(dT, -state.maxdt);
-                UT += dT;
-                state.Update(UT, ref iterationCount);
-            }
-
-            // --- Phase 1: Presolve ---
-            // Iterate until drdv > 0, which indicates we're in a basin of convergence around a
-            // local minimum of the distance function (not a maximum or saddle point).
-            //
-            // At each step, we solve the quadratic approximation of rdv for its zero crossing:
-            //   rdv(dt) ≈ rdv + drdv·dt + (ddrdv/2)·dt² = 0
-            //
-            // Rearranging: (ddrdv)·dt² + 2·drdv·dt + 2·rdv = 0
-            //
-            // The discriminant is: drdv² - 2·ddrdv·rdv
-            // The two roots are: (-drdv ± sqrt(discriminant)) / ddrdv
-            //
-            // Which root to use depends on the sign of rdv:
-            //   rdv > 0 (receding): we need to step toward the zero crossing where rdv transitions
-            //     from positive to negative. The larger-magnitude root reaches the minimum.
-            //   rdv ≤ 0 (approaching): we need the nearer zero crossing where rdv transitions from
-            //     negative back to zero at the minimum. The smaller-magnitude root suffices.
-            //
-            // When the discriminant is negative (no real roots), the quadratic approximation shows
-            // rdv doesn't cross zero nearby. Fall back to a clamped step in the direction that
-            // should reduce |rdv|.
-            while (!(state.drdv > 0.0) && iterationCount < maxIterations)
-            {
-                double rdv   = state.rdv;
-                double drdv  = state.drdv;
-                double ddrdv = state.ddrdv;
-
-                double discriminant = drdv * drdv - 2.0 * ddrdv * rdv;
-
-                if (discriminant >= 0.0)
+                probe2   = probe1;
+                probe1   = probe;
+                probe    = ut + step;
+                (r, rdv) = GetRdvAtUT(p, s, probe);
+                if (rdv * startSign <= 0)
                 {
-                    double sqrtDisc = Math.Sqrt(discriminant);
-
-                    if (rdv > 0.0)
+                    if (rdv > 0)
                     {
-                        // Receding from the body: take the larger root, which steps us past
-                        // the distance maximum and toward the minimum on the far side.
-                        dT = (-drdv + sqrtDisc) / ddrdv;
+                        bracketHi = probe;
+                        bracketLo = probe2;
                     }
                     else
                     {
-                        // Approaching the body (or at minimum): take the smaller root, which
-                        // steps us to the nearer zero crossing — the actual closest approach.
-                        dT = (-drdv - sqrtDisc) / ddrdv;
+                        bracketLo = probe;
+                        bracketHi = probe2;
                     }
 
-                    dT = state.Clamp_dt(dT);
+                    break;
                 }
+
+                probe2   = probe1;
+                probe1   = probe;
+                probe    = ut - step;
+                (r, rdv) = GetRdvAtUT(p, s, probe);
+                if (rdv * startSign <= 0)
+                {
+                    if (rdv > 0)
+                    {
+                        bracketHi = probe;
+                        bracketLo = probe2;
+                    }
+                    else
+                    {
+                        bracketLo = probe;
+                        bracketHi = probe2;
+                    }
+
+                    break;
+                }
+
+                step *= 1.6;
+                if (iterationCount++ > maxIterations)
+                    throw new Exception("could not find bracket"); // TODO: this cannot throw
+            }
+
+            /*
+            var state2 = new Orbit.CASolutionState(p, s, maxDT);
+
+            for (int i = 0; i <= 100; i++)
+            {
+                double probeX = minUT + i / 100.0 * (maxUT - minUT);
+                state2.Update(probeX, ref iterationCount, true);
+                Logger.Print($"{probeX}: {state2.rstate.pos.magnitude} {state2.targetAhead} {state2.rdv} {state2.drdv}");
+                double nextProbe = minUT + (i+1) / 100.0 * (maxUT - minUT);
+                if (ut > probeX && ut < nextProbe)
+                {
+                    state2.Update(ut, ref iterationCount, true);
+                    Logger.Print($"{ut}: {state2.rstate.pos.magnitude} {state2.targetAhead} {state2.rdv} {state2.drdv} [MOID]");
+                }
+                if (bracketLo > probeX && bracketLo < nextProbe)
+                {
+                    state2.Update(bracketLo, ref iterationCount, true);
+                    Logger.Print($"{bracketLo}: {state2.rstate.pos.magnitude} {state2.targetAhead} {state2.rdv} {state2.drdv} [BRACKETLO]");
+                }
+                if (bracketHi > probeX && bracketHi < nextProbe)
+                {
+                    state2.Update(bracketHi, ref iterationCount, true);
+                    Logger.Print($"{bracketHi}: {state2.rstate.pos.magnitude} {state2.targetAhead} {state2.rdv} {state2.drdv} [BRACKETHI]");
+                }
+            }
+            */
+
+            ut = (bracketLo + bracketHi) * 0.5;
+
+            iterationCount = 0;
+
+            /*
+             * Main Halley iteration
+             */
+
+            var state = new Orbit.CASolutionState(p, s, maxDT);
+
+            state.Update(ut, ref iterationCount);
+
+            double halleyDt = state.Halley_dt();
+            double newtonDt = -state.rdv / state.drdv;
+            double dt       = Math.Sign(halleyDt) != Math.Sign(newtonDt) ? newtonDt : halleyDt;
+
+            while (iterationCount < maxIterations && !(Math.Abs(dt) <= epsilon))
+            {
+                double candidateUT = ut + dt;
+
+                // fallback bisection
+                if (double.IsNaN(candidateUT) || candidateUT <= bracketLo || candidateUT >= bracketHi)
+                    candidateUT = (bracketLo + bracketHi) * 0.5;
+
+                ut = candidateUT;
+                state.Update(ut, ref iterationCount, true);
+                //Logger.Print($"HALLEY: {ut} halley:{halleyDt} newton:{newtonDt} targetAhead: {state.targetAhead} rdv:{state.rdv} drdv:{state.drdv}");
+
+                if (state.rdv < 0.0 && double.IsNaN(bracketLo))
+                    bracketLo = ut;
+                else if (state.rdv > 0.0 && double.IsNaN(bracketHi))
+                    bracketHi = ut;
                 else
-                {
-                    // No real roots — rdv doesn't cross zero in the quadratic approximation.
-                    // Step in the direction that should move us toward a region where it does:
-                    // if approaching (rdv ≤ 0), step forward; if receding (rdv > 0), step backward.
-                    dT = rdv > 0.0 ? -state.maxdt : state.maxdt;
-                }
+                    break; // landed exactly on the root
 
-                UT += dT;
-                state.Update(UT, ref iterationCount);
-            }
-
-            if (iterationCount >= maxIterations)
-            {
-                if (GameSettings.VERBOSE_DEBUG_LOG && !Thread.CurrentThread.IsBackground)
-                {
-                    Debug.LogFormat("[Orbit] SolveClosestApproach: presolve took too many iterations, bailing UT:{0} MinUT:{1} MaxUT:{2}", UT, MinUT, MaxUT);
-                }
-
-                return state.rstate.pos.magnitude;
-            }
-
-            // --- Phase 2: Halley iteration ---
-            // We now have drdv > 0, so we're in the basin of a distance minimum. Apply Halley's
-            // method to find the root of rdv with cubic convergence:
-            //
-            //   dt = -2·rdv·drdv / (2·drdv² - rdv·ddrdv)
-            //
-            // This is a third-order method that uses rdv, drdv, and ddrdv to converge much faster
-            // than Newton's method. Typically reaches machine precision in 3–5 iterations.
-            dT = state.Halley_dt();
-
-            // Boundary handling: if the Halley step would go below MinUT, check whether we can
-            // wrap around. For elliptical orbits the search window spans a full period, so adding
-            // MaxDT effectively wraps to the other side of the orbit. For hyperbolic orbits where
-            // there's no periodicity, clamp to MinUT and return.
-            if (UT + dT < MinUT)
-            {
-                if (!(MaxUT - MinUT >= state.MaxDT) || (!(p.eccentricity < 1.0) && !(s.eccentricity < 1.0)))
-                {
-                    UT = MinUT;
-                    state.Update(UT, ref iterationCount, true);
-                    return state.rstate.pos.magnitude;
-                }
-
-                dT += state.MaxDT;
-            }
-            else if (UT + dT > MaxUT)
-            {
-                UT = MaxUT;
-                state.Update(UT, ref iterationCount, true);
-                return state.rstate.pos.magnitude;
-            }
-
-            // Main Halley loop: iterate until the step size falls below epsilon.
-            while (iterationCount < maxIterations && !(Math.Abs(dT) <= epsilon))
-            {
-                UT += dT;
-                UT =  Math.Min(MaxUT, Math.Max(MinUT, UT));
-                state.Update(UT, ref iterationCount, true);
-                dT = state.Halley_dt();
+                halleyDt = state.Halley_dt();
+                newtonDt = -state.rdv / state.drdv;
+                dt       = Math.Sign(halleyDt) != Math.Sign(newtonDt) ? newtonDt : halleyDt;
             }
 
             if (iterationCount >= maxIterations && GameSettings.VERBOSE_DEBUG_LOG && !Thread.CurrentThread.IsBackground)
@@ -639,13 +673,16 @@ namespace PatchedConicFixes
                 Debug.Log("[Orbit] SolveClosestApproach: solve took too many iterations, result incorrect");
             }
 
+            if (iterationCount >= maxIterations)
+                throw new Exception("too many iterations"); // TODO: cannot throw, delete this
+
             return state.rstate.pos.magnitude;
         }
 
-        // _EncountersBody — PatchedConics.cs
+        // EncountersBody — PatchedConics.cs
         //
-        // Called after GetClosestApproach has already refined p.UTappr and p.ClAppr for
-        // a specific intercept window.  This function decides whether that closest approach
+        // Called after GetClosestApproach() has already refined p.UTappr and p.ClAppr for
+        // the time domain.  This function decides whether that closest approach
         // actually constitutes an SOI entry, and if so it pins down the exact SOI-crossing
         // time, validates the approach direction, and commits the patch transition.
         //
@@ -660,17 +697,19 @@ namespace PatchedConicFixes
         // Returns true  → encounter confirmed; p and nextPatch have been fully committed.
         // Returns false → no encounter this window.
 
-        internal static bool EncountersBody(Orbit p, Orbit s, Orbit nextPatch, OrbitDriver sec, double startEpoch, PatchedConics.SolverParameters pars)
+        public static bool EncountersBody(Orbit p, Orbit s, Orbit nextPatch, OrbitDriver sec, double startEpoch, PatchedConics.SolverParameters pars)
         {
+            // A sentinel value of -1 means SolveClosestApproach failed.
+            if (p.ClAppr < 0)
+                return false;
+
             // -----------------------------------------------------------------------
             // GATE CHECK: is the closest approach distance inside the body's SoI?
             //
             // p.ClAppr is the scalar distance between the spacecraft and the body at
             // p.UTappr, as computed by the preceding GetClosestApproach call.
-            // The sentinel value -1 means SolveClosestApproach failed to converge or
-            // was not run; we must not treat that as "zero distance".
             // -----------------------------------------------------------------------
-            if (p.ClAppr < sec.celestialBody.sphereOfInfluence && p.ClAppr != -1.0)
+            if (p.ClAppr < sec.celestialBody.sphereOfInfluence)
             {
                 // -------------------------------------------------------------------
                 // PHASE 1 — Bisect to the exact SOI crossing time.

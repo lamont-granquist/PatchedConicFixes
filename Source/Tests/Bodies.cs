@@ -56,4 +56,9 @@ namespace PatchedConicFixes.Tests
             return cb;
         }
     }
+
+    public static class Helpers
+    {
+        public static string OrbitDataString(Orbit o) => $"COrbitData({o.semiMajorAxis}, {o.eccentricity}, {o.inclination * Math.PI/180.0}, {o.argumentOfPeriapsis * Math.PI/180.0}, {o.LAN * Math.PI/180.0})";
+    }
 }

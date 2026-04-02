@@ -7,6 +7,7 @@
         <IsPackable>false</IsPackable>
         <Nullable>enable</Nullable>
         <LangVersion>8</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <!--
@@ -50,6 +51,12 @@
         <Reference Include="Assembly-CSharp-firstpass">
             <HintPath>$(KSPData)/Managed/Assembly-CSharp-firstpass.dll</HintPath>
             <Private>true</Private>
+        </Reference>
+        <Reference Include="Unity.Burst">
+          <HintPath>..\..\..\..\..\ksp\vanilla_1.12.3\GameData\000_KSPBurst\Plugins\Unity.Burst.dll</HintPath>
+        </Reference>
+        <Reference Include="Unity.Mathematics">
+          <HintPath>..\..\..\..\..\ksp\vanilla_1.12.3\GameData\000_KSPBurst\Plugins\Unity.Mathematics.dll</HintPath>
         </Reference>
         <Reference Include="UnityEngine">
             <HintPath>$(KSPData)/Managed/UnityEngine.dll</HintPath>

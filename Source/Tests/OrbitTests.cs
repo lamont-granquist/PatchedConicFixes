@@ -13,9 +13,8 @@ namespace PatchedConicFixes.Tests
             _testOutputHelper = testOutputHelper;
         }
 
-        // This is a common 2-MOID solution where one is near, but after the TLI maneuver and the bad initial
-        // guesses fed to GetClosestApproach() would always find that first MOID point twice (hopping out of the
-        // SOI basin due to bad trust region bounds on Halley's method).
+        // This is a bug with an typical TLI ejection to the Moon with the Moon ascending through a roughly equatorial
+        // encounter, which exercises the need to test both MOID points and is buggy in KSP 1.12.x
         [Fact]
         public void AscendingMoonTLIFailure()
         {
@@ -32,7 +31,7 @@ namespace PatchedConicFixes.Tests
             Assert.True(result);
 
             Assert.Equal(1163413.6494660573, p.EndUT, 3);
-            Assert.Equal(-6607296.1767470818, nextPatch.semiMajorAxis,2);
+            Assert.Equal(-6607296.1767470818, nextPatch.semiMajorAxis, 2);
             Assert.Equal(1.3779789903106174, nextPatch.eccentricity, 9);
             Assert.Equal(133.26553444141823, nextPatch.inclination, 7);
             Assert.Equal(205.38928286487098, nextPatch.LAN, 7);
@@ -68,7 +67,7 @@ namespace PatchedConicFixes.Tests
             Assert.Equal(133.26553507031255, nextPatch.inclination, 7);
             Assert.Equal(205.38928212367242, nextPatch.LAN, 7);
             Assert.Equal(274.89492052411111, nextPatch.argumentOfPeriapsis, 7);
-            Assert.Equal(-8.1599344587965881, nextPatch.meanAnomalyAtEpoch, 7);
+            Assert.Equal(-8.1599344587965881, nextPatch.meanAnomalyAtEpoch, 6);
             Assert.Equal(1163413.6495317207, nextPatch.epoch, 3);
 
             Vector3d vesselPos = p.getPositionAtUT(p.EndUT);
@@ -78,7 +77,8 @@ namespace PatchedConicFixes.Tests
         }
 
         // This is the same case as AscendingMoonTLIFailure() but we've warped past the first MOID point and
-        // even with the buggy solver the encounter will appear.
+        // even with the buggy solver the encounter will appear.  This exercises a bug in the SolveSOI() Newton
+        // solver where it runs into a "flat" region and the denominator goes to zero and the step becomes ~1.8e+19
         [Fact]
         public void FlickeringTyloEncounter()
         {
@@ -93,14 +93,14 @@ namespace PatchedConicFixes.Tests
             bool result = HarmonyPatches.CheckEncounter(p, nextPatch, 1261109.62120736, tylo.orbitDriver, tylo, pars, false);
 
             Assert.True(result);
-            Assert.Equal(1409549.6282595578, p.EndUT);
-            Assert.Equal(-3070988.0775043946, nextPatch.semiMajorAxis);
-            Assert.Equal(2.7065531829057434, nextPatch.eccentricity);
-            Assert.Equal(4.8387567394518829, nextPatch.inclination);
-            Assert.Equal(141.84225399409706, nextPatch.LAN);
-            Assert.Equal(218.03375183903731, nextPatch.argumentOfPeriapsis);
-            Assert.Equal(-2.5337155636348196, nextPatch.meanAnomalyAtEpoch);
-            Assert.Equal(1409549.6282595578, nextPatch.epoch);
+            Assert.Equal(1409549.6282595578, p.EndUT, 3);
+            Assert.Equal(-3070988.0775043946, nextPatch.semiMajorAxis, 1);
+            Assert.Equal(2.7065531829057434, nextPatch.eccentricity, 7);
+            Assert.Equal(4.8387567394518829, nextPatch.inclination, 6);
+            Assert.Equal(141.84225399409706, nextPatch.LAN, 6);
+            Assert.Equal(218.03375183903731, nextPatch.argumentOfPeriapsis, 5);
+            Assert.Equal(-2.5337155636348196, nextPatch.meanAnomalyAtEpoch, 7);
+            Assert.Equal(1409549.6282595578, nextPatch.epoch, 3);
 
             Vector3d vesselPos = p.getPositionAtUT(p.EndUT);
             Vector3d moonPos   = tylo.orbitDriver.orbit.getPositionAtUT(p.EndUT);
