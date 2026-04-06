@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using HarmonyLib;
 using UnityEngine;
+using static PatchedConicFixes.Statics;
 
 // ReSharper disable ArrangeTypeModifiers
 // ReSharper disable UnusedMember.Local
@@ -48,11 +49,20 @@ namespace PatchedConicFixes
         }
     }
 
+    // Replaces Orbit._SolveSOI entirely.
+    [HarmonyPatch(typeof(Orbit), nameof(Orbit._SolveSOI))]
+    class Orbit__SolveSOI
+    {
+        static bool Prefix(Orbit p, Orbit s, ref double UT, double dT, double Rsoi, double MinUT, double MaxUT, double epsilon, int maxIterations, ref int iterationCount, ref bool __result)
+        {
+            __result = HarmonyPatches.SolveSOI(p, s, ref UT, dT, Rsoi, MinUT, MaxUT, epsilon, maxIterations, ref iterationCount);
+
+            return false;
+        }
+    }
+
     public static class HarmonyPatches
     {
-        public const double RAD_2_DEG = 180.0 / Math.PI;
-        public const double DEG_2_RAD = Math.PI / 180.0;
-
         public static string OrbitString(Orbit o) => $"{o.inclination}, {o.eccentricity}, {o.semiMajorAxis}, {o.LAN}, {o.argumentOfPeriapsis}, {o.meanAnomalyAtEpoch}, {o.epoch}";
 
         /// <summary>
@@ -123,8 +133,8 @@ namespace PatchedConicFixes
 
                 // a = semi-major axis, e = eccentricity, i = inclination,
                 // w = argument of periapsis, Om = longitude of ascending node
-                var o1 = new COrbitData(p.semiMajorAxis, p.eccentricity, p.inclination * DEG_2_RAD, p.argumentOfPeriapsis * DEG_2_RAD, p.LAN * DEG_2_RAD);
-                var o2 = new COrbitData(s.semiMajorAxis, s.eccentricity, s.inclination * DEG_2_RAD, s.argumentOfPeriapsis * DEG_2_RAD, s.LAN * DEG_2_RAD);
+                var o1 = new COrbitData(p.semiMajorAxis, p.eccentricity, Deg2Rad(p.inclination), Deg2Rad(p.argumentOfPeriapsis), Deg2Rad(p.LAN));
+                var o2 = new COrbitData(s.semiMajorAxis, s.eccentricity, Deg2Rad(s.inclination), Deg2Rad(s.argumentOfPeriapsis), Deg2Rad(s.LAN));
 
                 Baluev.MoidInfo* info = stackalloc Baluev.MoidInfo[4];
 
@@ -198,7 +208,7 @@ namespace PatchedConicFixes
                     // try wrapping around the end of the orbit to try the first MOID with a seed one period in the future.
                     Baluev.MoidInfo wrappedInfo = info[0];
                     wrappedInfo.tt += p.period;
-                    wrappedInfo.ut = startEpoch + wrappedInfo.tt;
+                    wrappedInfo.ut =  startEpoch + wrappedInfo.tt;
 
                     if ((alwaysShowMarkers || !(wrappedInfo.dst >= sec.celestialBody.sphereOfInfluence)) && !double.IsInfinity(wrappedInfo.ut))
                     {
@@ -543,7 +553,7 @@ namespace PatchedConicFixes
 
             iterationCount = 0;
 
-            (double r, double rdv) = GetRdvAtUT(p, s, ut);
+            (double _, double rdv) = GetRdvAtUT(p, s, ut);
             int startSign = Math.Sign(rdv);
 
             double step = maxDT / 8;
@@ -559,7 +569,7 @@ namespace PatchedConicFixes
                 probe2   = probe1;
                 probe1   = probe;
                 probe    = ut + step;
-                (r, rdv) = GetRdvAtUT(p, s, probe);
+                (_, rdv) = GetRdvAtUT(p, s, probe);
                 if (rdv * startSign <= 0)
                 {
                     if (rdv > 0)
@@ -579,7 +589,7 @@ namespace PatchedConicFixes
                 probe2   = probe1;
                 probe1   = probe;
                 probe    = ut - step;
-                (r, rdv) = GetRdvAtUT(p, s, probe);
+                (_, rdv) = GetRdvAtUT(p, s, probe);
                 if (rdv * startSign <= 0)
                 {
                     if (rdv > 0)
@@ -727,7 +737,7 @@ namespace PatchedConicFixes
                 // Result is written into p.UTsoi.
                 // -------------------------------------------------------------------
                 p.UTsoi = p.UTappr; // initialise bisection anchor at closest approach
-                Orbit.SolveSOI_BSP(
+                SolveSOI(
                     p, s,
                     ref p.UTsoi,                         // in/out: SOI crossing time
                     (p.UTappr - startEpoch) * 0.5,       // initial search half-width
@@ -796,6 +806,49 @@ namespace PatchedConicFixes
             // No encounter this window.
             // -----------------------------------------------------------------------
             return false;
+        }
+
+        public static bool SolveSOI(Orbit p, Orbit s, ref double ut, double dT, double rsoi, double minUT, double maxUT, double epsilon, int maxIterations, ref int iterationCount)
+        {
+            double rdv       = Orbit.RelativeStateAtUT(p, s, maxUT, out Orbit.State _, out Orbit.State _, out Orbit.State rstate);
+            double magnitude = rstate.pos.magnitude;
+
+            iterationCount = 1;
+            // ReSharper disable once CompareOfFloatsByEqualityOperator
+            if (magnitude == rsoi)
+            {
+                ut = maxUT;
+                return true;
+            }
+
+            UtilMath.SphereIntersection(rsoi, rstate.pos, rstate.vel, out dT, false);
+            ut = Math.Max(minUT, maxUT + dT);
+
+            double rsoi2  = rsoi * rsoi;
+
+            while (iterationCount++ < maxIterations)
+            {
+                rdv    = Orbit.RelativeStateAtUT(p, s, ut, out _, out _, out rstate);
+                double sqrMag = rstate.pos.sqrMagnitude;
+
+                if (NearlyEqual(sqrMag, rsoi2, 1e-10))
+                    break;
+
+                if (sqrMag < rsoi2)
+                    maxUT = ut;
+                else
+                    minUT = ut;
+
+                dT = (rsoi2 - sqrMag) / (2.0 * rdv);
+                double next = ut + dT;
+
+                if (next <= minUT || next >= maxUT)
+                    next = 0.5 * (minUT + maxUT);
+
+                ut = next;
+            }
+
+            return iterationCount < maxIterations;
         }
     }
 }

@@ -1,8 +1,7 @@
 ﻿using System;
 using Xunit;
 
-namespace PatchedConicFixes.Tests
-{
+
     namespace PatchedConicFixes.Tests
     {
         public unsafe class SolveQuarticTests
@@ -351,4 +350,4 @@ namespace PatchedConicFixes.Tests
             }
         }
     }
-}
+

@@ -74,9 +74,17 @@ namespace PatchedConicFixes.Tests
 
         [Theory]
         [InlineData(12703)]
+        [InlineData(14619)]
+        [InlineData(35111)]
+        [InlineData(41446)]
+        public void FixedAfterSolveSOIFixes(int seed)
+        {
+            ConstructedEncounterIsFound(seed);
+        }
+
+        [Theory]
         [InlineData(13907)]
         [InlineData(14235)]
-        [InlineData(14619)]
         [InlineData(14659)]
         [InlineData(16239)]
         [InlineData(16949)]
@@ -86,11 +94,9 @@ namespace PatchedConicFixes.Tests
         [InlineData(25503)]
         [InlineData(30056)]
         [InlineData(32440)]
-        [InlineData(35111)]
         [InlineData(36413)]
         [InlineData(3698)]
         [InlineData(38799)]
-        [InlineData(41446)]
         [InlineData(42106)]
         [InlineData(4223)]
         [InlineData(42650)]
