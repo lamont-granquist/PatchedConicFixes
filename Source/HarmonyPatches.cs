@@ -845,6 +845,10 @@ namespace PatchedConicFixes
                 if (next <= minUT || next >= maxUT)
                     next = 0.5 * (minUT + maxUT);
 
+                // ReSharper disable once CompareOfFloatsByEqualityOperator
+                if (next == ut)
+                    break;
+
                 ut = next;
             }
 
