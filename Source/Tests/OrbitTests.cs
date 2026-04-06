@@ -76,9 +76,8 @@ namespace PatchedConicFixes.Tests
             Assert.Equal(moon.sphereOfInfluence, (vesselPos - moonPos).magnitude, 0);
         }
 
-        // This is the same case as AscendingMoonTLIFailure() but we've warped past the first MOID point and
-        // even with the buggy solver the encounter will appear.  This exercises a bug in the SolveSOI() Newton
-        // solver where it runs into a "flat" region and the denominator goes to zero and the step becomes ~1.8e+19
+        // This exercises a bug in the SolveSOI() Newton solver where it runs into a "flat" region
+        // and the denominator goes to zero and the step becomes ~1.8e+19
         [Fact]
         public void FlickeringTyloEncounter()
         {

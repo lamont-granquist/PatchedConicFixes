@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Unity.Burst;
 using Unity.Mathematics;
 using Random = Unity.Mathematics.Random;
+using static PatchedConicFixes.Statics;
 
 // ReSharper disable CompareOfFloatsByEqualityOperator
 
@@ -10,8 +11,6 @@ namespace PatchedConicFixes
     [BurstCompile]
     public unsafe struct Baluev
     {
-        private const double EPS = 2.2204460492503131e-16;
-
         /// <summary>
         ///     Core g(u) evaluation shared by all variants.
         ///     The sign parameters encode the ee/he/eh/hh differences:
