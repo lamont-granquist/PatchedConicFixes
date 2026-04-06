@@ -9,7 +9,7 @@ namespace PatchedConicFixes.Tests
 
         private static void BuildPolynomial(Cmplx[] roots, Cmplx* c)
         {
-            int n                             = roots.Length;
+            int n = roots.Length;
 
             for (int i = 0; i <= n; i++) c[i] = 0.0;
             c[0] = 1.0;

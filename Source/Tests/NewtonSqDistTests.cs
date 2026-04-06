@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -14,9 +13,9 @@ namespace PatchedConicFixes.Tests
             _testOutputHelper = testOutputHelper;
         }
 
-        const double Tol = 1e-10;
+        private const double Tol = 1e-10;
 
-        static void AssertClose(double expected, double actual, double tol = Tol, string label = "")
+        private static void AssertClose(double expected, double actual, double tol = Tol, string label = "")
         {
             Assert.True(Math.Abs(expected - actual) < tol,
                 $"{label} Expected {expected:G17}, got {actual:G17}, diff = {Math.Abs(expected - actual):G17}");
@@ -27,11 +26,11 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void ConvergesToCriticalPoint()
         {
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
-            var O2 = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1   = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var     O2   = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g    = stackalloc double[2];
+            double* H    = stackalloc double[3];
 
             double u1 = 1.0, u2 = 0.5;
             Baluev.NewtonSqDist(&data, ref u1, ref u2,
@@ -48,11 +47,11 @@ namespace PatchedConicFixes.Tests
         public void ReturnsPositiveDefiniteAtMinimum()
         {
             // Start near a minimum, should converge and report +2
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
-            var O2 = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1   = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var     O2   = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g    = stackalloc double[2];
+            double* H    = stackalloc double[3];
 
             // Use MinDistanceFor to get a good starting point near a minimum
             double u1Start = 1.0;
@@ -71,18 +70,18 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void RhoConsistentWithDistanceBetween()
         {
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
-            var O2 = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1   = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var     O2   = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g    = stackalloc double[2];
+            double* H    = stackalloc double[3];
 
             double u1 = 1.0, u2 = 0.5;
             Baluev.NewtonSqDist(&data, ref u1, ref u2,
                 out _, out _, out double rho, out _,
                 1e-14, out _, 30, g, H);
 
-            double dist = Baluev.DistanceBetween(&data, true, true, u1, u2);
+            double dist        = Baluev.DistanceBetween(&data, true, true, u1, u2);
             double distFromRho = Math.Sqrt(2.0 * data.a1 * data.a2 * rho);
             AssertClose(dist, distFromRho, 1e-8, "distance from rho");
         }
@@ -92,11 +91,11 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void ErrorEstimatesAreNonNegative()
         {
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
-            var O2 = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1   = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var     O2   = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g    = stackalloc double[2];
+            double* H    = stackalloc double[3];
 
             double u1 = 1.0, u2 = 0.5;
             Baluev.NewtonSqDist(&data, ref u1, ref u2,
@@ -112,11 +111,11 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void ErrorEstimatesAreSmallAtConvergence()
         {
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
-            var O2 = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1   = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var     O2   = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g    = stackalloc double[2];
+            double* H    = stackalloc double[3];
 
             double u1Start = 1.0;
             Baluev.MinDistanceFor(&data, u1Start, out double u2Start);
@@ -140,11 +139,11 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void IterationCountIsReasonable()
         {
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
-            var O2 = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1   = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var     O2   = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g    = stackalloc double[2];
+            double* H    = stackalloc double[3];
 
             double u1 = 1.0, u2 = 0.5;
             Baluev.NewtonSqDist(&data, ref u1, ref u2,
@@ -158,11 +157,11 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void AlreadyAtMinimum_FewIterations()
         {
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
-            var O2 = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1   = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var     O2   = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g    = stackalloc double[2];
+            double* H    = stackalloc double[3];
 
             // Pre-converge with several SqDist2DIter steps
             double u1 = 1.0, u2 = 0.5;
@@ -187,13 +186,13 @@ namespace PatchedConicFixes.Tests
         public void AngleWrapping_ResultInRange()
         {
             // Start with u1 near ±π boundary
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
-            var O2 = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1   = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var     O2   = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g    = stackalloc double[2];
+            double* H    = stackalloc double[3];
 
-            double u1 = 3.0, u2 = -3.0;  // near ±π
+            double u1 = 3.0, u2 = -3.0; // near ±π
             Baluev.NewtonSqDist(&data, ref u1, ref u2,
                 out _, out _, out _, out _,
                 1e-14, out _, 30, g, H);
@@ -209,11 +208,11 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void CoplanarCircularOrbits()
         {
-            var O1 = new COrbitData(1.0, 0.0, 0.0, 0.0, 0.0);
-            var O2 = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1   = new COrbitData(1.0, 0.0, 0.0, 0.0, 0.0);
+            var     O2   = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g    = stackalloc double[2];
+            double* H    = stackalloc double[3];
 
             double u1 = 0.5, u2 = 0.5;
             short hsign = Baluev.NewtonSqDist(&data, ref u1, ref u2,
@@ -231,11 +230,11 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void PerpendicularPlanes()
         {
-            var O1 = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
-            var O2 = new COrbitData(2.0, 0.0, Math.PI / 2.0, 0.0, 0.0);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1   = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
+            var     O2   = new COrbitData(2.0, 0.0, Math.PI / 2.0, 0.0, 0.0);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g    = stackalloc double[2];
+            double* H    = stackalloc double[3];
 
             // Start near the intersection line
             double u1 = 0.1, u2 = 0.1;
@@ -251,11 +250,11 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void HighEccentricityOrbits()
         {
-            var O1 = new COrbitData(2.0, 0.8, 0.3, 0.5, 0.0);
-            var O2 = new COrbitData(3.0, 0.6, 0.6, 1.0, 0.8);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1   = new COrbitData(2.0, 0.8, 0.3, 0.5, 0.0);
+            var     O2   = new COrbitData(3.0, 0.6, 0.6, 1.0, 0.8);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g    = stackalloc double[2];
+            double* H    = stackalloc double[3];
 
             double u1 = 0.5;
             Baluev.MinDistanceFor(&data, u1, out double u2);
@@ -280,13 +279,9 @@ namespace PatchedConicFixes.Tests
             double* g    = stackalloc double[2];
             double* H    = stackalloc double[3];
 
-            var starts = new (double u1, double u2)[]
-            {
-                (0.5, 0.5), (1.0, -1.0), (2.0, 0.0),
-                (-1.5, 1.5), (0.0, 2.5), (-2.0, -2.0),
-            };
+            var starts = new (double u1, double u2)[] { (0.5, 0.5), (1.0, -1.0), (2.0, 0.0), (-1.5, 1.5), (0.0, 2.5), (-2.0, -2.0) };
 
-            foreach (var (u1Start, u2Start) in starts)
+            foreach ((double u1Start, double u2Start) in starts)
             {
                 double u1 = u1Start, u2 = u2Start;
                 Baluev.NewtonSqDist(&data, ref u1, ref u2,
@@ -331,18 +326,15 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void HessianSign_IsValidValue()
         {
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
-            var O2 = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1   = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var     O2   = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g    = stackalloc double[2];
+            double* H    = stackalloc double[3];
 
-            var starts = new (double u1, double u2)[]
-            {
-                (0.5, 0.5), (1.0, -1.0), (2.0, 0.0),
-            };
+            var starts = new (double u1, double u2)[] { (0.5, 0.5), (1.0, -1.0), (2.0, 0.0) };
 
-            foreach (var (u1Start, u2Start) in starts)
+            foreach ((double u1Start, double u2Start) in starts)
             {
                 double u1 = u1Start, u2 = u2Start;
                 short hsign = Baluev.NewtonSqDist(&data, ref u1, ref u2,
@@ -359,11 +351,11 @@ namespace PatchedConicFixes.Tests
         {
             // When hsign = +2, rho should be a local minimum:
             // perturbing u1 or u2 should increase rho
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
-            var O2 = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g = stackalloc double[2];
-            double* H = stackalloc double[3];
+            var     O1     = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var     O2     = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
+            var     data   = SAuxData.Create(in O1, in O2);
+            double* g      = stackalloc double[2];
+            double* H      = stackalloc double[3];
             double* gDummy = stackalloc double[2];
 
             double u1 = 1.0;
@@ -373,9 +365,9 @@ namespace PatchedConicFixes.Tests
                 out _, out _, out double rho, out _,
                 1e-14, out _, 30, g, H);
 
-            if (hsign != +2) return;  // only test if we actually found a minimum
+            if (hsign != +2) return; // only test if we actually found a minimum
 
-            double h = 1e-5;
+            double h     = 1e-5;
             double rhoP1 = Baluev.SqDistVG(&data, true, true, u1 + h, u2, gDummy);
             double rhoM1 = Baluev.SqDistVG(&data, true, true, u1 - h, u2, gDummy);
             double rhoP2 = Baluev.SqDistVG(&data, true, true, u1, u2 + h, gDummy);
@@ -392,13 +384,13 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void SymmetricOrbits_SymmetricResult()
         {
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.0, 0.0);
-            var O2 = new COrbitData(2.0, 0.3, 0.5, Math.PI, 0.0);
-            var data = SAuxData.Create(in O1, in O2);
-            double* g1 = stackalloc double[2];
-            double* H1 = stackalloc double[3];
-            double* g2 = stackalloc double[2];
-            double* H2 = stackalloc double[3];
+            var     O1   = new COrbitData(2.0, 0.3, 0.5, 0.0, 0.0);
+            var     O2   = new COrbitData(2.0, 0.3, 0.5, Math.PI, 0.0);
+            var     data = SAuxData.Create(in O1, in O2);
+            double* g1   = stackalloc double[2];
+            double* H1   = stackalloc double[3];
+            double* g2   = stackalloc double[2];
+            double* H2   = stackalloc double[3];
 
             double u1a = 0.5, u2a = 0.5;
             Baluev.NewtonSqDist(&data, ref u1a, ref u2a,

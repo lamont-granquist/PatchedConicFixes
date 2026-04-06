@@ -34,53 +34,35 @@ namespace PatchedConicFixes.Tests
         [InlineData(478)]
         [InlineData(58)]
         [InlineData(61)]
-        public void BaluevFixingRegressionCases(int seed)
-        {
-            ConstructedEncounterIsFound(seed);
-        }
+        public void BaluevFixingRegressionCases(int seed) => ConstructedEncounterIsFound(seed);
 
         [Theory]
         [InlineData(211)]
-        public void PreBaluev2MinimaRegressionCases(int seed)
-        {
-            ConstructedEncounterIsFound(seed);
-        }
+        public void PreBaluev2MinimaRegressionCases(int seed) => ConstructedEncounterIsFound(seed);
 
         [Theory]
         [InlineData(134)]
         [InlineData(198)]
         [InlineData(4)]
-        public void PreBaluev3MinimaRegressionCases(int seed)
-        {
-            ConstructedEncounterIsFound(seed);
-        }
+        public void PreBaluev3MinimaRegressionCases(int seed) => ConstructedEncounterIsFound(seed);
 
         [Theory]
         [InlineData(196)]
         [InlineData(209)]
         [InlineData(432)]
         [InlineData(98)]
-        public void PreBaluev4MinimaRegressionCases(int seed)
-        {
-            ConstructedEncounterIsFound(seed);
-        }
+        public void PreBaluev4MinimaRegressionCases(int seed) => ConstructedEncounterIsFound(seed);
 
         [Theory]
         [InlineData(1341)]
-        public void EncounterMOIDIsAfterOnePeriod(int seed)
-        {
-            ConstructedEncounterIsFound(seed);
-        }
+        public void EncounterMOIDIsAfterOnePeriod(int seed) => ConstructedEncounterIsFound(seed);
 
         [Theory]
         [InlineData(12703)]
         [InlineData(14619)]
         [InlineData(35111)]
         [InlineData(41446)]
-        public void FixedAfterSolveSOIFixes(int seed)
-        {
-            ConstructedEncounterIsFound(seed);
-        }
+        public void FixedAfterSolveSOIFixes(int seed) => ConstructedEncounterIsFound(seed);
 
         [Theory]
         [InlineData(13907)]
@@ -105,10 +87,7 @@ namespace PatchedConicFixes.Tests
         [InlineData(5206)]
         [InlineData(6265)]
         [InlineData(6848)]
-        public void BrokenTestsTodo(int seed)
-        {
-            ConstructedEncounterIsFound(seed);
-        }
+        public void BrokenTestsTodo(int seed) => ConstructedEncounterIsFound(seed);
 
         /// <summary>
         ///     Constructs a guaranteed encounter by working backwards:
@@ -117,11 +96,9 @@ namespace PatchedConicFixes.Tests
         ///     3. Construct a vessel orbit passing through that SOI point with an infalling velocity
         ///     4. Rewind time and run the encounter solver
         ///     5. Assert the solver finds the encounter (or an earlier valid one)
-        ///
         ///     For each geometry, 10 different rewind amounts are tested to exercise different
         ///     solver starting configurations.
         /// </summary>
-
         [Theory]
         [MemberData(nameof(Seeds))]
         public void ConstructedEncounterIsFound(int seed)
@@ -140,7 +117,7 @@ namespace PatchedConicFixes.Tests
             (CelestialBody parent, CelestialBody moon) = Bodies.MakeParentChild(
                 parentMu, 10 * moonSma,
                 moonMu, moonSoi,
-                inc: 0, e: 0, sma: moonSma, lan: 0, argPe: 0, mEp: moonMEpoch, epoch: 0
+                0, 0, moonSma, 0, 0, moonMEpoch, 0
             );
 
             /*
@@ -158,23 +135,23 @@ namespace PatchedConicFixes.Tests
             Logger.Print($"ENCOUNTER TIME: {tEnc}");
 
             // Moon state at encounter time
-            Orbit moonOrbit = moon.orbitDriver.orbit;
-            Vector3d moonPos = moonOrbit.getRelativePositionAtUT(tEnc);
-            Vector3d moonVel = moonOrbit.getOrbitalVelocityAtUT(tEnc);
+            Orbit    moonOrbit = moon.orbitDriver.orbit;
+            Vector3d moonPos   = moonOrbit.getRelativePositionAtUT(tEnc);
+            Vector3d moonVel   = moonOrbit.getOrbitalVelocityAtUT(tEnc);
 
             // Vessel position at encounter time
             Vector3d soiOffset = moonSoi * RandomUnitVector(rng);
             Vector3d vesselPos = moonPos + soiOffset;
-            double vesselR     = vesselPos.magnitude;
+            double   vesselR   = vesselPos.magnitude;
 
             // Vessel velocity at encounter time
-            double vCirc   = Math.Sqrt(parentMu / vesselR);
+            double vCirc = Math.Sqrt(parentMu / vesselR);
 
             Vector3d vesselVel = Vector3d.zero;
 
             for (int attempt = 0; attempt < 200; attempt++)
             {
-                double speed = vCirc * Uniform(rng, 0.7, 1.3);
+                double   speed        = vCirc * Uniform(rng, 0.7, 1.3);
                 Vector3d candidateVel = speed * RandomUnitVector(rng);
 
                 if (Vector3d.Dot(soiOffset, candidateVel - moonVel) < 0)
@@ -183,6 +160,7 @@ namespace PatchedConicFixes.Tests
                     break;
                 }
             }
+
             Assert.False(vesselVel == Vector3d.zero, "Failed to generate infalling velocity after 200 attempts");
 
             // Construct Orbit from state vectors at encounter
@@ -223,7 +201,7 @@ namespace PatchedConicFixes.Tests
                 var p = new Orbit();
                 p.UpdateFromStateVectors(pos, vel, parent, startEpoch);
                 p.StartUT = startEpoch;
-                p.EndUT = startEpoch + vesselPeriod;
+                p.EndUT   = startEpoch + vesselPeriod;
 
                 var nextPatch = new Orbit();
                 var pars      = new PatchedConics.SolverParameters();
@@ -242,7 +220,7 @@ namespace PatchedConicFixes.Tests
                 // Encounter found — validate it
                 Vector3d vesselPosAtSOI = p.getPositionAtUT(p.EndUT);
                 Vector3d moonPosAtSOI   = moonOrbit.getPositionAtUT(p.EndUT);
-                double distAtSOI        = (vesselPosAtSOI - moonPosAtSOI).magnitude;
+                double   distAtSOI      = (vesselPosAtSOI - moonPosAtSOI).magnitude;
 
                 // The SOI crossing distance should match the moon's SOI
                 bool soiDistOk = Math.Abs(distAtSOI - moonSoi) / moonSoi < 0.01; // 1% tolerance
@@ -273,10 +251,7 @@ namespace PatchedConicFixes.Tests
 
         #region Helpers
 
-        private static double Uniform(Random rng, double lo, double hi)
-        {
-            return lo + (hi - lo) * rng.NextDouble();
-        }
+        private static double Uniform(Random rng, double lo, double hi) => lo + (hi - lo) * rng.NextDouble();
 
         private static double LogUniform(Random rng, double lo, double hi)
         {
@@ -292,6 +267,7 @@ namespace PatchedConicFixes.Tests
             double r   = Math.Sqrt(1.0 - z * z);
             return new Vector3d(r * Math.Cos(phi), r * Math.Sin(phi), z);
         }
+
         #endregion
     }
 }

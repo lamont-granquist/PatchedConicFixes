@@ -5,9 +5,9 @@ namespace PatchedConicFixes.Tests
 {
     public class AngleHelperTests
     {
-        const double Tol = 1e-12;
+        private const double Tol = 1e-12;
 
-        static void AssertClose(double expected, double actual, double tol = Tol, string label = "")
+        private static void AssertClose(double expected, double actual, double tol = Tol, string label = "")
         {
             Assert.True(Math.Abs(expected - actual) < tol,
                 $"{label} Expected {expected:G17}, got {actual:G17}, diff = {Math.Abs(expected - actual):G17}");
@@ -16,10 +16,7 @@ namespace PatchedConicFixes.Tests
         // --- AngleWrap ---
 
         [Fact]
-        public void AngleWrap_Zero()
-        {
-            AssertClose(0.0, Baluev.AngleWrap(0.0));
-        }
+        public void AngleWrap_Zero() => AssertClose(0.0, Baluev.AngleWrap(0.0));
 
         [Fact]
         public void AngleWrap_AlreadyInRange()
@@ -50,7 +47,7 @@ namespace PatchedConicFixes.Tests
         public void AngleWrap_JustOverPi()
         {
             // π + 0.1 should wrap to roughly -π + 0.1
-            double input = Math.PI + 0.1;
+            double input    = Math.PI + 0.1;
             double expected = -Math.PI + 0.1;
             AssertClose(expected, Baluev.AngleWrap(input));
         }
@@ -59,7 +56,7 @@ namespace PatchedConicFixes.Tests
         public void AngleWrap_JustUnderNegativePi()
         {
             // -π - 0.1 should wrap to roughly π - 0.1
-            double input = -Math.PI - 0.1;
+            double input    = -Math.PI - 0.1;
             double expected = Math.PI - 0.1;
             AssertClose(expected, Baluev.AngleWrap(input));
         }
@@ -129,8 +126,8 @@ namespace PatchedConicFixes.Tests
         {
             // For x = 1: atan2h(y, 1) = atanh(y)
             // atanh(0.5) = (log(1.5) - log(0.5)) / 2
-            double y = 0.5;
-            double expected = 0.5 * Math.Log(1.5 / 0.5);  // atanh(0.5)
+            double y        = 0.5;
+            double expected = 0.5 * Math.Log(1.5 / 0.5); // atanh(0.5)
             AssertClose(expected, Baluev.Atan2h(y, 1.0));
         }
 
@@ -138,7 +135,7 @@ namespace PatchedConicFixes.Tests
         public void Atan2h_ScaleInvariance()
         {
             // atan2h(ky, kx) = atan2h(y, x) for k > 0
-            double y = 0.3, x = 2.0;
+            double y    = 0.3, x = 2.0;
             double val1 = Baluev.Atan2h(y, x);
             double val2 = Baluev.Atan2h(3.0 * y, 3.0 * x);
             AssertClose(val1, val2, 1e-10, "scale invariance");

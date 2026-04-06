@@ -2,7 +2,6 @@ using System;
 using System.Globalization;
 using Xunit.Sdk;
 using static PatchedConicFixes.Statics;
-using static System.Math;
 
 namespace PatchedConicFixes.Tests
 {

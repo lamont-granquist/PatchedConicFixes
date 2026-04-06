@@ -99,7 +99,7 @@ namespace PatchedConicFixes.Tests
 
             for (int i = 0; i < N; i++) roots[i] = 0.0;
 
-            var expected = new[] { new Cmplx(1.0, 2.0), new Cmplx(1.0, -2.0), new Cmplx(-1.0, 0.5), new Cmplx(-1.0, -0.5), new Cmplx(3.0) };
+            Cmplx[] expected = { new Cmplx(1.0, 2.0), new Cmplx(1.0, -2.0), new Cmplx(-1.0, 0.5), new Cmplx(-1.0, -0.5), new Cmplx(3.0) };
             BuildPolynomial(expected, c);
             CopyCoeffs(c, cSaved, N);
 
@@ -121,7 +121,7 @@ namespace PatchedConicFixes.Tests
 
             for (int i = 0; i < N; i++) roots[i] = 0.0;
 
-            var expected = new[] { new Cmplx(2.0, 1.0), new Cmplx(2.0, -1.0), new Cmplx(-1.0, 3.0), new Cmplx(-1.0, -3.0), new Cmplx(0.5, 0.5), new Cmplx(0.5, -0.5) };
+            Cmplx[] expected = { new Cmplx(2.0, 1.0), new Cmplx(2.0, -1.0), new Cmplx(-1.0, 3.0), new Cmplx(-1.0, -3.0), new Cmplx(0.5, 0.5), new Cmplx(0.5, -0.5) };
             BuildPolynomial(expected, c);
             CopyCoeffs(c, cSaved, N);
 
@@ -249,7 +249,7 @@ namespace PatchedConicFixes.Tests
             var z0    = Cmplx.Polar(1.1, 0.5);
             var z0inv = Cmplx.Polar(1.0 / 1.1, -0.5);
 
-            var expected = new[] { z0, z0inv, Cmplx.Polar(1.0, 1.5), Cmplx.Polar(1.0, -1.5), Cmplx.Polar(1.0, 2.5), Cmplx.Polar(1.0, -2.5) };
+            Cmplx[] expected = { z0, z0inv, Cmplx.Polar(1.0, 1.5), Cmplx.Polar(1.0, -1.5), Cmplx.Polar(1.0, 2.5), Cmplx.Polar(1.0, -2.5) };
             BuildPolynomial(expected, c);
             CopyCoeffs(c, cSaved, N);
 
@@ -273,7 +273,7 @@ namespace PatchedConicFixes.Tests
 
             for (int i = 0; i < N; i++) roots[i] = 0.0;
 
-            var expected = new[] { new Cmplx(2.0, 3.0), new Cmplx(2.0, -3.0), new Cmplx(-1.0, 0.5), new Cmplx(-1.0, -0.5), new Cmplx(4.0), new Cmplx(-2.0) };
+            Cmplx[] expected = { new Cmplx(2.0, 3.0), new Cmplx(2.0, -3.0), new Cmplx(-1.0, 0.5), new Cmplx(-1.0, -0.5), new Cmplx(4.0), new Cmplx(-2.0) };
             BuildPolynomial(expected, c);
             CopyCoeffs(c, cSaved, N);
 
@@ -293,7 +293,7 @@ namespace PatchedConicFixes.Tests
 
             for (int i = 0; i < N; i++) roots[i] = 0.0;
 
-            var expected = new[] { new Cmplx(5.0, 1e-5), new Cmplx(5.0, -1e-5), new Cmplx(1.0, 2.0), new Cmplx(1.0, -2.0), new Cmplx(-3.0), new Cmplx(2.0) };
+            Cmplx[] expected = { new Cmplx(5.0, 1e-5), new Cmplx(5.0, -1e-5), new Cmplx(1.0, 2.0), new Cmplx(1.0, -2.0), new Cmplx(-3.0), new Cmplx(2.0) };
             BuildPolynomial(expected, c);
             CopyCoeffs(c, cSaved, N);
 
@@ -314,7 +314,7 @@ namespace PatchedConicFixes.Tests
 
             for (int i = 0; i < N; i++) roots[i] = 0.0;
 
-            var expected = new[] { new Cmplx(1.0, 1.0), new Cmplx(1.0, -1.0), new Cmplx(-2.0, 0.5), new Cmplx(-2.0, -0.5), new Cmplx(3.0), new Cmplx(-1.0) };
+            Cmplx[] expected = { new Cmplx(1.0, 1.0), new Cmplx(1.0, -1.0), new Cmplx(-2.0, 0.5), new Cmplx(-2.0, -0.5), new Cmplx(3.0), new Cmplx(-1.0) };
             BuildPolynomial(expected, c);
             var scale                         = new Cmplx(5.0, -2.0);
             for (int i = 0; i <= N; i++) c[i] = c[i] * scale;
@@ -338,7 +338,7 @@ namespace PatchedConicFixes.Tests
 
             for (int i = 0; i < N; i++) roots[i] = 0.0;
 
-            var expected = new[] { Cmplx.Polar(1.0, 0.3), Cmplx.Polar(1.0, 1.2), Cmplx.Polar(1.0, 2.5), Cmplx.Polar(1.0, 3.8), Cmplx.Polar(1.0, 5.1) };
+            Cmplx[] expected = { Cmplx.Polar(1.0, 0.3), Cmplx.Polar(1.0, 1.2), Cmplx.Polar(1.0, 2.5), Cmplx.Polar(1.0, 3.8), Cmplx.Polar(1.0, 5.1) };
             BuildPolynomial(expected, c);
             CopyCoeffs(c, cSaved, N);
 
@@ -384,7 +384,7 @@ namespace PatchedConicFixes.Tests
 
             for (int i = 0; i < N; i++) roots[i] = 0.0;
 
-            var expected = new[] { new Cmplx(1.0), new Cmplx(1.0 + 1e-4), new Cmplx(-2.0), new Cmplx(-2.0 + 1e-4), new Cmplx(0.5, 1.0), new Cmplx(0.5, -1.0) };
+            Cmplx[] expected = { new Cmplx(1.0), new Cmplx(1.0 + 1e-4), new Cmplx(-2.0), new Cmplx(-2.0 + 1e-4), new Cmplx(0.5, 1.0), new Cmplx(0.5, -1.0) };
             BuildPolynomial(expected, c);
             CopyCoeffs(c, cSaved, N);
 
@@ -434,7 +434,7 @@ namespace PatchedConicFixes.Tests
 
             for (int i = 0; i < N; i++) roots[i] = 0.0;
 
-            var expected = new[] { new Cmplx(0.1, 0.2), new Cmplx(0.1, -0.2), new Cmplx(0.5), new Cmplx(-0.8), new Cmplx(2.0, 1.0), new Cmplx(2.0, -1.0), new Cmplx(5.0), new Cmplx(-3.0) };
+            Cmplx[] expected = { new Cmplx(0.1, 0.2), new Cmplx(0.1, -0.2), new Cmplx(0.5), new Cmplx(-0.8), new Cmplx(2.0, 1.0), new Cmplx(2.0, -1.0), new Cmplx(5.0), new Cmplx(-3.0) };
             BuildPolynomial(expected, c);
             CopyCoeffs(c, cSaved, N);
 

@@ -30,9 +30,9 @@ namespace PatchedConicFixes.Tests
         private static bool Close(Cmplx a, Cmplx b, double tol)
             => Math.Abs(a.Re - b.Re) < tol && Math.Abs(a.Im - b.Im) < tol;
 
-        static void AssertResidualSmall(Cmplx* c, Cmplx root, double tol = 1e-12)
+        private static void AssertResidualSmall(Cmplx* c, Cmplx root, double tol = 1e-12)
         {
-            Cmplx val = Eval(c, root);
+            Cmplx  val   = Eval(c, root);
             double scale = Math.Max(1.0, c[2].Abs * root.Norm);
             Assert.True(val.Abs < tol * scale,
                 $"Residual |P({root.Re:G17} + {root.Im:G17}i)| = {val.Abs:G17} exceeds {tol * scale:G17}");
