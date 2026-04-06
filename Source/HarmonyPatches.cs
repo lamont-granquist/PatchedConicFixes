@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using HarmonyLib;
 using UnityEngine;
@@ -497,11 +498,20 @@ namespace PatchedConicFixes
             return SolveClosestApproach(p, s, ref p.UTappr, maxDT, 0.0, startEpoch, maxUT, pars.epsilon, pars.maxTimeSolverIterations, ref pars.TimeSolverIterations1);
         }
 
-        static (double r, double rdv) GetRdvAtUT(Orbit p, Orbit s, double ut)
+        /// <summary>
+        /// Lighter weight helper than Orbit.RelativeStateAtUT().  Beware that rstate only has valid pos and vel.
+        /// </summary>
+        /// <param name="p"></param>
+        /// <param name="s"></param>
+        /// <param name="ut"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static (double rSqr, double rdv, Orbit.State rstate) GetRdvAtUT(Orbit p, Orbit s, double ut)
         {
             p.GetOrbitalStateVectorsAtUT(ut, out Vector3d pPos, out Vector3d pVel);
             s.GetOrbitalStateVectorsAtUT(ut, out Vector3d sPos, out Vector3d sVel);
-            return ((pPos - sPos).magnitude, Vector3d.Dot(pVel - sVel, pPos - sPos));
+            var rstate = new Orbit.State { pos = pPos - sPos, vel = pVel - sVel };
+            return ((pPos - sPos).sqrMagnitude, Vector3d.Dot(pVel - sVel, pPos - sPos), rstate);
         }
 
         /// <summary>
@@ -553,7 +563,7 @@ namespace PatchedConicFixes
 
             iterationCount = 0;
 
-            (double _, double rdv) = GetRdvAtUT(p, s, ut);
+            (_, double rdv, _) = GetRdvAtUT(p, s, ut);
             int startSign = Math.Sign(rdv);
 
             double step = maxDT / 8;
@@ -569,7 +579,7 @@ namespace PatchedConicFixes
                 probe2   = probe1;
                 probe1   = probe;
                 probe    = ut + step;
-                (_, rdv) = GetRdvAtUT(p, s, probe);
+                (_, rdv, _) = GetRdvAtUT(p, s, probe);
                 if (rdv * startSign <= 0)
                 {
                     if (rdv > 0)
@@ -589,7 +599,7 @@ namespace PatchedConicFixes
                 probe2   = probe1;
                 probe1   = probe;
                 probe    = ut - step;
-                (_, rdv) = GetRdvAtUT(p, s, probe);
+                (_, rdv, _) = GetRdvAtUT(p, s, probe);
                 if (rdv * startSign <= 0)
                 {
                     if (rdv > 0)
@@ -808,12 +818,30 @@ namespace PatchedConicFixes
             return false;
         }
 
-        public static bool SolveSOI(Orbit p, Orbit s, ref double ut, double dT, double rsoi, double minUT, double maxUT, double epsilon, int maxIterations, ref int iterationCount)
+        /// <summary>
+        /// Finds the time at which the relative distance between orbits p and s equals rsoi.
+        ///
+        /// Uses a Newton step (dT = (rsoi² - r²) / (2 * rdv)) with fallback to bisection when
+        /// the Newton step would leave the bracket, eliminating limit cycles.  Converges to
+        /// machine precision or maxIterations, whichever comes first.
+        ///
+        /// Callers MUST supply minUT and maxUT as a valid bracket: the relative distance at
+        /// minUT must be outside rsoi and at maxUT must be inside (or vice versa).  This is
+        /// guaranteed by the encounter detection pipeline which only calls SolveSOI after
+        /// confirming an SOI crossing exists within the interval.
+        ///
+        /// The ut parameter is the output time of the SOI crossing.
+        ///
+        /// The dT and epsilon parameters are unused (dT was always scratch; epsilon is
+        /// superseded by the NearlyEqual convergence test -- the precision was chosen to hit
+        /// almost always 2-4 rounds).
+        /// </summary>
+        public static bool SolveSOI(Orbit p, Orbit s, ref double ut, double unused2, double rsoi, double minUT, double maxUT, double unused3, int maxIterations, ref int iterationCount)
         {
-            double rdv       = Orbit.RelativeStateAtUT(p, s, maxUT, out Orbit.State _, out Orbit.State _, out Orbit.State rstate);
+            (double sqrMag, double rdv, Orbit.State rstate) = GetRdvAtUT(p, s, ut);
             double magnitude = rstate.pos.magnitude;
 
-            iterationCount = 1;
+            iterationCount = 0;
             // ReSharper disable once CompareOfFloatsByEqualityOperator
             if (magnitude == rsoi)
             {
@@ -821,32 +849,36 @@ namespace PatchedConicFixes
                 return true;
             }
 
-            UtilMath.SphereIntersection(rsoi, rstate.pos, rstate.vel, out dT, false);
+            // Simple ray sphere intersection guess, dT is always negative.
+            UtilMath.SphereIntersection(rsoi, rstate.pos, rstate.vel, out double dT, false);
             ut = Math.Max(minUT, maxUT + dT);
 
             double rsoi2  = rsoi * rsoi;
 
             while (iterationCount++ < maxIterations)
             {
-                rdv    = Orbit.RelativeStateAtUT(p, s, ut, out _, out _, out rstate);
-                double sqrMag = rstate.pos.sqrMagnitude;
+                (sqrMag, rdv, _) = GetRdvAtUT(p, s, ut);
 
-                if (NearlyEqual(sqrMag, rsoi2, 1e-10))
+                // This typically does 2-4 rounds
+                if (NearlyEqual(sqrMag, rsoi2, 1e-11))
                     break;
 
+                // shrink the bracket
                 if (sqrMag < rsoi2)
                     maxUT = ut;
                 else
                     minUT = ut;
 
+                // Quadratic potential is better behaved far from the solution
                 dT = (rsoi2 - sqrMag) / (2.0 * rdv);
                 double next = ut + dT;
 
+                // fallback to bisection
                 if (next <= minUT || next >= maxUT)
                     next = 0.5 * (minUT + maxUT);
 
                 // ReSharper disable once CompareOfFloatsByEqualityOperator
-                if (next == ut)
+                if (next == ut) // done due to lack of forward progress
                     break;
 
                 ut = next;
