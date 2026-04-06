@@ -5,18 +5,18 @@ namespace PatchedConicFixes.Tests
 {
     public unsafe class RadiusVectorTests
     {
-        const double Tol = 1e-10;
+        private const double Tol = 1e-10;
 
-        static void AssertClose(double expected, double actual, double tol = Tol, string label = "")
+        private static void AssertClose(double expected, double actual, double tol = Tol, string label = "")
         {
             Assert.True(Math.Abs(expected - actual) < tol,
                 $"{label} Expected {expected:G17}, got {actual:G17}, diff = {Math.Abs(expected - actual):G17}");
         }
 
-        static double Dot(double* a, double* b)
+        private static double Dot(double* a, double* b)
             => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
-        static double Norm(double* a)
+        private static double Norm(double* a)
             => Math.Sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
 
         // --- RadiusVector: basic geometry ---
@@ -26,7 +26,7 @@ namespace PatchedConicFixes.Tests
         {
             // Circular orbit (e=0), i=0, w=0, Om=0, u=0
             // At periapsis: r = a*(cos(0)-0)·P + a*sin(0)·η·Q = a·P = a·x̂
-            var O = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
+            var O    = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
             var data = SAuxData.Create(in O, in O);
 
             double* r = stackalloc double[3];
@@ -41,7 +41,7 @@ namespace PatchedConicFixes.Tests
         public void CircularEquatorial_90Degrees()
         {
             // u=π/2: r = a*(cos(π/2)-0)·P + a*sin(π/2)·1·Q = a·Q = a·ŷ
-            var O = new COrbitData(3.0, 0.0, 0.0, 0.0, 0.0);
+            var O    = new COrbitData(3.0, 0.0, 0.0, 0.0, 0.0);
             var data = SAuxData.Create(in O, in O);
 
             double* r = stackalloc double[3];
@@ -56,7 +56,7 @@ namespace PatchedConicFixes.Tests
         public void CircularEquatorial_180Degrees()
         {
             // u=π: r = a*(cos(π)-0)·P = -a·P
-            var O = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
+            var O    = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
             var data = SAuxData.Create(in O, in O);
 
             double* r = stackalloc double[3];
@@ -71,9 +71,9 @@ namespace PatchedConicFixes.Tests
         public void EllipticOrbit_RadiusMagnitude()
         {
             // |r| = a(1 - e·cos u)
-            double a = 2.0, e = 0.3, u = 1.0;
-            var O = new COrbitData(a, e, 0.5, 0.8, 1.2);
-            var data = SAuxData.Create(in O, in O);
+            double a    = 2.0, e = 0.3, u = 1.0;
+            var    O    = new COrbitData(a, e, 0.5, 0.8, 1.2);
+            var    data = SAuxData.Create(in O, in O);
 
             double* r = stackalloc double[3];
             Baluev.RadiusVector(true, data.P1, data.Q1, data.a1, data.e1, u, r);
@@ -86,7 +86,7 @@ namespace PatchedConicFixes.Tests
         public void EllipticOrbit_LiesInOrbitalPlane()
         {
             // r should be perpendicular to the orbital normal P × Q
-            var O = new COrbitData(2.0, 0.3, 0.8, 1.2, 0.5);
+            var O    = new COrbitData(2.0, 0.3, 0.8, 1.2, 0.5);
             var data = SAuxData.Create(in O, in O);
 
             double* r = stackalloc double[3];
@@ -105,9 +105,9 @@ namespace PatchedConicFixes.Tests
         public void EllipticOrbit_Periapsis_AlongP()
         {
             // At u=0: r = a(1-e)·P (periapsis distance along P direction)
-            double a = 3.0, e = 0.5;
-            var O = new COrbitData(a, e, 0.5, 0.8, 1.2);
-            var data = SAuxData.Create(in O, in O);
+            double a    = 3.0, e = 0.5;
+            var    O    = new COrbitData(a, e, 0.5, 0.8, 1.2);
+            var    data = SAuxData.Create(in O, in O);
 
             double* r = stackalloc double[3];
             Baluev.RadiusVector(true, data.P1, data.Q1, data.a1, data.e1, 0.0, r);
@@ -123,9 +123,9 @@ namespace PatchedConicFixes.Tests
         public void EllipticOrbit_Apoapsis_AlongNegP()
         {
             // At u=π: r = a(1+e)·(-P̂) = -a(1+e)·P̂
-            double a = 3.0, e = 0.5;
-            var O = new COrbitData(a, e, 0.5, 0.8, 1.2);
-            var data = SAuxData.Create(in O, in O);
+            double a    = 3.0, e = 0.5;
+            var    O    = new COrbitData(a, e, 0.5, 0.8, 1.2);
+            var    data = SAuxData.Create(in O, in O);
 
             double* r = stackalloc double[3];
             Baluev.RadiusVector(true, data.P1, data.Q1, data.a1, data.e1, Math.PI, r);
@@ -141,9 +141,9 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void ValDer_PositionMatchesRadiusVector()
         {
-            double a = 2.0, e = 0.3, u = 1.5;
-            var O = new COrbitData(a, e, 0.5, 0.8, 1.2);
-            var data = SAuxData.Create(in O, in O);
+            double a    = 2.0, e = 0.3, u = 1.5;
+            var    O    = new COrbitData(a, e, 0.5, 0.8, 1.2);
+            var    data = SAuxData.Create(in O, in O);
 
             double* r1 = stackalloc double[3];
             Baluev.RadiusVector(true, data.P1, data.Q1, a, e, u, r1);
@@ -160,16 +160,16 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void ValDer_DerivativeMatchesFiniteDifference()
         {
-            double a = 2.0, e = 0.3, u = 1.5;
-            var O = new COrbitData(a, e, 0.5, 0.8, 1.2);
-            var data = SAuxData.Create(in O, in O);
+            double a    = 2.0, e = 0.3, u = 1.5;
+            var    O    = new COrbitData(a, e, 0.5, 0.8, 1.2);
+            var    data = SAuxData.Create(in O, in O);
 
-            double* r = stackalloc double[3];
+            double* r  = stackalloc double[3];
             double* rd = stackalloc double[3];
             Baluev.RadiusVectorValDer(true, data.P1, data.Q1, a, e, u, r, rd);
 
             // Finite difference: (r(u+h) - r(u-h)) / (2h) / a
-            double h = 1e-7;
+            double  h  = 1e-7;
             double* rp = stackalloc double[3];
             double* rm = stackalloc double[3];
             Baluev.RadiusVector(true, data.P1, data.Q1, a, e, u + h, rp);
@@ -186,11 +186,11 @@ namespace PatchedConicFixes.Tests
         public void ValDer_DerivativePerpToRadiusForCircular()
         {
             // For e=0: dr/du is perpendicular to r (uniform circular motion)
-            double a = 2.0, e = 0.0, u = 1.0;
-            var O = new COrbitData(a, e, 0.5, 0.8, 1.2);
-            var data = SAuxData.Create(in O, in O);
+            double a    = 2.0, e = 0.0, u = 1.0;
+            var    O    = new COrbitData(a, e, 0.5, 0.8, 1.2);
+            var    data = SAuxData.Create(in O, in O);
 
-            double* r = stackalloc double[3];
+            double* r  = stackalloc double[3];
             double* rd = stackalloc double[3];
             Baluev.RadiusVectorValDer(true, data.P1, data.Q1, a, e, u, r, rd);
 
@@ -205,15 +205,15 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void ValDer2_PositionAndFirstDerivMatchValDer()
         {
-            double a = 2.0, e = 0.3, u = 1.5;
-            var O = new COrbitData(a, e, 0.5, 0.8, 1.2);
-            var data = SAuxData.Create(in O, in O);
+            double a    = 2.0, e = 0.3, u = 1.5;
+            var    O    = new COrbitData(a, e, 0.5, 0.8, 1.2);
+            var    data = SAuxData.Create(in O, in O);
 
-            double* r1 = stackalloc double[3];
+            double* r1  = stackalloc double[3];
             double* rd1 = stackalloc double[3];
             Baluev.RadiusVectorValDer(true, data.P1, data.Q1, a, e, u, r1, rd1);
 
-            double* r2 = stackalloc double[3];
+            double* r2  = stackalloc double[3];
             double* rd2 = stackalloc double[3];
             double* rdd = stackalloc double[3];
             Baluev.RadiusVectorValDer2(true, data.P1, data.Q1, a, e, u, r2, rd2, rdd);
@@ -228,20 +228,20 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void ValDer2_SecondDerivMatchesFiniteDifference()
         {
-            double a = 2.0, e = 0.3, u = 1.5;
-            var O = new COrbitData(a, e, 0.5, 0.8, 1.2);
-            var data = SAuxData.Create(in O, in O);
+            double a    = 2.0, e = 0.3, u = 1.5;
+            var    O    = new COrbitData(a, e, 0.5, 0.8, 1.2);
+            var    data = SAuxData.Create(in O, in O);
 
-            double* r = stackalloc double[3];
-            double* rd = stackalloc double[3];
+            double* r   = stackalloc double[3];
+            double* rd  = stackalloc double[3];
             double* rdd = stackalloc double[3];
             Baluev.RadiusVectorValDer2(true, data.P1, data.Q1, a, e, u, r, rd, rdd);
 
             // FD of first derivative: (rd(u+h) - rd(u-h)) / (2h)
-            double h = 1e-7;
-            double* rp = stackalloc double[3];
+            double  h   = 1e-7;
+            double* rp  = stackalloc double[3];
             double* rdp = stackalloc double[3];
-            double* rm = stackalloc double[3];
+            double* rm  = stackalloc double[3];
             double* rdm = stackalloc double[3];
             Baluev.RadiusVectorValDer(true, data.P1, data.Q1, a, e, u + h, rp, rdp);
             Baluev.RadiusVectorValDer(true, data.P1, data.Q1, a, e, u - h, rm, rdm);
@@ -258,12 +258,12 @@ namespace PatchedConicFixes.Tests
         {
             // For circular e=0: d²r/du² = -r/a (since r = a·(cos u·P + sin u·Q))
             // rdd = d²r/du² / a, so rdd = -r/a²
-            double a = 3.0, e = 0.0, u = 1.2;
-            var O = new COrbitData(a, e, 0.5, 0.8, 1.2);
-            var data = SAuxData.Create(in O, in O);
+            double a    = 3.0, e = 0.0, u = 1.2;
+            var    O    = new COrbitData(a, e, 0.5, 0.8, 1.2);
+            var    data = SAuxData.Create(in O, in O);
 
-            double* r = stackalloc double[3];
-            double* rd = stackalloc double[3];
+            double* r   = stackalloc double[3];
+            double* rd  = stackalloc double[3];
             double* rdd = stackalloc double[3];
             Baluev.RadiusVectorValDer2(true, data.P1, data.Q1, a, e, u, r, rd, rdd);
 
@@ -276,7 +276,7 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void DistanceBetween_SamePoint_IsZero()
         {
-            var O = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var O    = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
             var data = SAuxData.Create(in O, in O);
 
             double dist = Baluev.DistanceBetween(&data, true, true, 1.0, 1.0);
@@ -287,7 +287,7 @@ namespace PatchedConicFixes.Tests
         public void DistanceBetween_OppositePointsOnCircle()
         {
             // Two identical circular orbits, u1=0, u2=π → distance = 2a
-            var O = new COrbitData(3.0, 0.0, 0.0, 0.0, 0.0);
+            var O    = new COrbitData(3.0, 0.0, 0.0, 0.0, 0.0);
             var data = SAuxData.Create(in O, in O);
 
             double dist = Baluev.DistanceBetween(&data, true, true, 0.0, Math.PI);
@@ -298,7 +298,7 @@ namespace PatchedConicFixes.Tests
         public void DistanceBetween_90DegreesOnCircle()
         {
             // Identical circular orbit, u1=0, u2=π/2 → distance = a√2
-            var O = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
+            var O    = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
             var data = SAuxData.Create(in O, in O);
 
             double dist = Baluev.DistanceBetween(&data, true, true, 0.0, Math.PI / 2.0);
@@ -310,8 +310,8 @@ namespace PatchedConicFixes.Tests
         {
             // Two coplanar circular orbits of different radii at the same angle
             // distance = |a1 - a2|
-            var O1 = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
-            var O2 = new COrbitData(5.0, 0.0, 0.0, 0.0, 0.0);
+            var O1   = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
+            var O2   = new COrbitData(5.0, 0.0, 0.0, 0.0, 0.0);
             var data = SAuxData.Create(in O1, in O2);
 
             double dist = Baluev.DistanceBetween(&data, true, true, 0.7, 0.7);
@@ -324,8 +324,8 @@ namespace PatchedConicFixes.Tests
             // O1 equatorial, O2 polar, both circular, same a
             // At u1=0, u2=0: both at periapsis along their P vectors
             // O1: r1 = a·(1,0,0), O2: r2 = a·(1,0,0) — same point for w=0, Om=0
-            var O1 = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
-            var O2 = new COrbitData(2.0, 0.0, Math.PI / 2.0, 0.0, 0.0);
+            var O1   = new COrbitData(2.0, 0.0, 0.0, 0.0, 0.0);
+            var O2   = new COrbitData(2.0, 0.0, Math.PI / 2.0, 0.0, 0.0);
             var data = SAuxData.Create(in O1, in O2);
 
             // At u=0 both have r = a·P, and P for both starts at (1,0,0)
@@ -342,8 +342,8 @@ namespace PatchedConicFixes.Tests
         public void DistanceBetween_Symmetric()
         {
             // d(O1@u1, O2@u2) should equal d(O2@u2, O1@u1)
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
-            var O2 = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
+            var O1     = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var O2     = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
             var data12 = SAuxData.Create(in O1, in O2);
             var data21 = SAuxData.Create(in O2, in O1);
 
@@ -355,8 +355,8 @@ namespace PatchedConicFixes.Tests
         [Fact]
         public void DistanceBetween_TriangleInequality()
         {
-            var O1 = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
-            var O2 = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
+            var O1   = new COrbitData(2.0, 0.3, 0.5, 0.8, 1.2);
+            var O2   = new COrbitData(3.0, 0.5, 0.7, 0.2, 1.5);
             var data = SAuxData.Create(in O1, in O2);
 
             // Three points: A = O1@0, B = O2@1, C = O2@2
@@ -378,9 +378,9 @@ namespace PatchedConicFixes.Tests
             // Periapsis to apoapsis on same elliptic orbit:
             // d = a(1+e) - (-a(1-e)) along the apse line... wait, they're collinear
             // d = a(1+e) + a(1-e) = 2a
-            double a = 3.0, e = 0.5;
-            var O = new COrbitData(a, e, 0.0, 0.0, 0.0);
-            var data = SAuxData.Create(in O, in O);
+            double a    = 3.0, e = 0.5;
+            var    O    = new COrbitData(a, e, 0.0, 0.0, 0.0);
+            var    data = SAuxData.Create(in O, in O);
 
             double dist = Baluev.DistanceBetween(&data, true, true, 0.0, Math.PI);
             AssertClose(2.0 * a, dist, label: "periapsis to apoapsis");

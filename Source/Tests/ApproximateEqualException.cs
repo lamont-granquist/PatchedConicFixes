@@ -13,6 +13,7 @@ namespace PatchedConicFixes.Tests
                 "Actual:   {1}\n" +
                 "Epsilon:  {2:G}",
                 expected, actual, epsilon))
-        { }
+        {
+        }
     }
 }
