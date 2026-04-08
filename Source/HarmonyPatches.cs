@@ -226,7 +226,7 @@ namespace PatchedConicFixes
 
             catch (Exception value)
             {
-                //Logger.Print($"{value}"); // TODO: remove this
+                //Logger.Print($"{value}");
                 if (!Thread.CurrentThread.IsBackground)
                 {
                     Console.WriteLine(value);
@@ -617,8 +617,6 @@ namespace PatchedConicFixes
                 }
 
                 step *= 1.6;
-                if (iterationCount++ > maxIterations)
-                    throw new Exception("could not find bracket"); // TODO: this cannot throw
             }
 
             /*
@@ -692,9 +690,6 @@ namespace PatchedConicFixes
             {
                 Debug.Log("[Orbit] SolveClosestApproach: solve took too many iterations, result incorrect");
             }
-
-            if (iterationCount >= maxIterations)
-                throw new Exception("too many iterations"); // TODO: cannot throw, delete this
 
             return state.rstate.pos.magnitude;
         }
