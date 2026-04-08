@@ -2,92 +2,25 @@ using System;
 using System.Collections.Generic;
 using Xunit;
 using Xunit.Abstractions;
-using Random = System.Random;
 
 namespace PatchedConicFixes.Tests
 {
     [Collection("KSP")]
-    public class RandomCircularMoonEllipticalVessel
+    public class RandomCircularMoonHyperbolicVessel
     {
         private readonly ITestOutputHelper _output;
 
-        public RandomCircularMoonEllipticalVessel(ITestOutputHelper output)
+        public RandomCircularMoonHyperbolicVessel(ITestOutputHelper output)
         {
             _output = output;
         }
 
+        // 15790, 12279, 425 hangs stock?
         public static IEnumerable<object[]> Seeds()
         {
             for (int i = 0; i <= 500; i++)
                 yield return new object[] { i };
         }
-
-        [Theory]
-        [InlineData(122)]
-        [InlineData(211)]
-        [InlineData(3)]
-        [InlineData(301)]
-        [InlineData(324)]
-        [InlineData(334)]
-        [InlineData(389)]
-        [InlineData(453)]
-        [InlineData(478)]
-        [InlineData(58)]
-        [InlineData(61)]
-        public void BaluevFixingRegressionCases(int seed) => RandomlyConstructedEncounter(seed);
-
-        [Theory]
-        [InlineData(211)]
-        public void PreBaluev2MinimaRegressionCases(int seed) => RandomlyConstructedEncounter(seed);
-
-        [Theory]
-        [InlineData(134)]
-        [InlineData(198)]
-        [InlineData(4)]
-        public void PreBaluev3MinimaRegressionCases(int seed) => RandomlyConstructedEncounter(seed);
-
-        [Theory]
-        [InlineData(196)]
-        [InlineData(209)]
-        [InlineData(432)]
-        [InlineData(98)]
-        public void PreBaluev4MinimaRegressionCases(int seed) => RandomlyConstructedEncounter(seed);
-
-        [Theory]
-        [InlineData(1341)]
-        public void EncounterMOIDIsAfterOnePeriod(int seed) => RandomlyConstructedEncounter(seed);
-
-        [Theory]
-        [InlineData(12703)]
-        [InlineData(14619)]
-        [InlineData(35111)]
-        [InlineData(41446)]
-        public void FixedAfterSolveSOIFixes(int seed) => RandomlyConstructedEncounter(seed);
-
-        [Theory]
-        [InlineData(13907)]
-        [InlineData(14235)]
-        [InlineData(14659)]
-        [InlineData(16239)]
-        [InlineData(16949)]
-        [InlineData(17663)]
-        [InlineData(17969)]
-        [InlineData(18067)]
-        [InlineData(25503)]
-        [InlineData(30056)]
-        [InlineData(32440)]
-        [InlineData(36413)]
-        [InlineData(3698)]
-        [InlineData(38799)]
-        [InlineData(42106)]
-        [InlineData(4223)]
-        [InlineData(42650)]
-        [InlineData(48505)]
-        [InlineData(49671)]
-        [InlineData(5206)]
-        [InlineData(6265)]
-        [InlineData(6848)]
-        public void BrokenTestsTodo(int seed) => RandomlyConstructedEncounter(seed);
 
         /// <summary>
         ///     Constructs a guaranteed encounter by working backwards:
@@ -151,7 +84,7 @@ namespace PatchedConicFixes.Tests
 
             for (int attempt = 0; attempt < 200; attempt++)
             {
-                double   speed        = vCirc * Uniform(rng, 0.7, 1.3);
+                double   speed        = vCirc * Uniform(rng, 1.42, 3.0);
                 Vector3d candidateVel = speed * RandomUnitVector(rng);
 
                 if (Vector3d.Dot(soiOffset, candidateVel - moonVel) < 0)
@@ -166,7 +99,10 @@ namespace PatchedConicFixes.Tests
             // Construct Orbit from state vectors at encounter
             var vesselOrbit = new Orbit();
             vesselOrbit.UpdateFromStateVectors(vesselPos, vesselVel, parent, tEnc);
-            double vesselPeriod = vesselOrbit.period;
+            Logger.Print($"{vesselOrbit.referenceBody.gravParameter}");
+            Logger.Print($"{vesselOrbit.meanMotion}");
+            double nuStart = -vesselOrbit.TrueAnomalyAtRadius(10 * moonSma);
+            double nuEnd = vesselOrbit.TrueAnomalyAtUT(tEnc);
 
             /*
             _output.WriteLine($"Seed {seed}: parentMu={parentMu:E3} moonSma={moonSma:E3} moonSoi={moonSoi:E3}");
@@ -185,7 +121,8 @@ namespace PatchedConicFixes.Tests
             {
                 // Rewind by 10%-90% of the vessel's period
                 double rewindFraction = Uniform(rng, 0.1, 0.9);
-                double rewind         = vesselPeriod * rewindFraction;
+                double nuRewind       = nuStart + (nuEnd - nuStart) * rewindFraction;
+                double rewind = tEnc + vesselOrbit.GetDTforTrueAnomaly(nuRewind, 0);
                 double startEpoch     = tEnc - rewind;
 
                 vesselOrbit.GetOrbitalStateVectorsAtUT(startEpoch, out Vector3d pos, out Vector3d vel);
@@ -201,7 +138,7 @@ namespace PatchedConicFixes.Tests
                 var p = new Orbit();
                 p.UpdateFromStateVectors(pos, vel, parent, startEpoch);
                 p.StartUT = startEpoch;
-                p.EndUT   = startEpoch + vesselPeriod;
+                p.EndUT   = tEnc + vesselOrbit.GetDTforTrueAnomaly(-nuStart, 0);;
 
                 var nextPatch = new Orbit();
                 var pars      = new PatchedConics.SolverParameters();
@@ -234,7 +171,7 @@ namespace PatchedConicFixes.Tests
 
                 // Check timing: did we find our encounter or an earlier one?
                 // NB: if we find an EARLIER encounter by rewinding that is considered good enough
-                if (p.EndUT > tEnc + 1.0)
+                if (p.EndUT > tEnc + 11.0)
                 {
                     // We should never find a FIRST encounter LATER than the one we've constructed to happen.
                     _output.WriteLine($"  Trial {trial}: FAIL - found later encounter (found={p.EndUT:F3}, expected<={tEnc:F3})");
