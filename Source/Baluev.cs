@@ -1039,6 +1039,23 @@ namespace PatchedConicFixes
 
                     dst = math.sqrt(dst * 2.0 * data.a1 * data.a2);
 
+                    // deduplicate roots (1e-6 is probably way more than enough tolerance for our purposes, while NewtonSqDist is
+                    // much more accurate than that)
+                    bool duplicate = false;
+                    for (int j = 0; j < rootCount; j++)
+                    {
+                        double du1 = math.abs(AngleWrap((swapped ? u2 : u1) - info[j].u1));
+                        double du2 = math.abs(AngleWrap((swapped ? u1 : u2) - info[j].u2));
+
+                        if (du1 > 1e-6 && du2 > 1e-6)
+                            continue;
+
+                        duplicate = true;
+                        break;
+                    }
+
+                    if (duplicate) continue;
+
                     info[rootCount].dst = dst;
                     info[rootCount].u1  = swapped ? u2 : u1;
                     info[rootCount].u2  = swapped ? u1 : u2;
