@@ -137,13 +137,12 @@ namespace PatchedConicFixes
                 var o1 = new COrbitData(p.semiMajorAxis, p.eccentricity, Deg2Rad(p.inclination), Deg2Rad(p.argumentOfPeriapsis), Deg2Rad(p.LAN));
                 var o2 = new COrbitData(s.semiMajorAxis, s.eccentricity, Deg2Rad(s.inclination), Deg2Rad(s.argumentOfPeriapsis), Deg2Rad(s.LAN));
 
-                Baluev.MoidInfo* info = stackalloc Baluev.MoidInfo[4];
+                Baluev.MoidInfo* info = stackalloc Baluev.MoidInfo[6];
 
                 int num = Baluev.FindAllMinima(o1, o2, info);
 
-                /*
-                for (int i = 0; i < 4; i++)
-                    Logger.Print($"{num} {info[i].dst} {info[i].u1} {info[i].u2}"); */
+                for (int i = 0; i < 6; i++)
+                    Logger.Print($"{num} {info[i].dst} {info[i].u1} {info[i].u2}");
 
                 // perfectly circular coplanar orbit check.
                 if (num < 1)
