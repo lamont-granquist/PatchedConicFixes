@@ -1,11 +1,13 @@
 # PatchedConicFixes
 
-Fixes several bugs in KSP 1.12.x's patched conic trajectory system that cause SOI
-encounters to go undetected, even when your ship is on a clear intercept course.
-A few examples of affected scenarios include problems with flickering orbits
-around Jool, and transfers to an ascending Moon in RealSolarSystem, and many
-others. The replacement encounter solver is also approximately 5× faster than
-the stock implementation.
+This is a near overhaul of KSP 1.12.x's encounter resolution in the patched conic
+solver.  It fixes several regressions introduced around KSP 1.8.0, along with
+multiple design problems that KSP had from the start.  Many or most of the bugs
+where SOI encounters to go undetected, even when your ship is on a clear intercept
+course, have been fixed.  A few examples of affected scenarios include problems
+with flickering orbits around Jool, and transfers to an ascending Moon in
+RealSolarSystem, and many others. The replacement encounter solver is also
+approximately 5× faster than the stock implementation.
 
 ## Requirements
 
