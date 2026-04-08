@@ -3,11 +3,11 @@
     "$kref": "#/ckan/github/REPLACE_ME/PatchedConicFixes",
     "name": "PatchedConicFixes",
     "abstract": "Fixes issues with patched conic trajectories in KSP",
-    "author": [ "REPLACE_ME" ],
+    "author": [ "Lamont Granquist" ],
     "license": "MIT",
     "resources": {
-        "repository": "https://github.com/REPLACE_ME/PatchedConicFixes",
-        "bugtracker": "https://github.com/REPLACE_ME/PatchedConicFixes/issues"
+        "repository": "https://github.com/lamont-granquist/PatchedConicFixes",
+        "bugtracker": "https://github.com/lamont-granquist/PatchedConicFixes/issues"
     },
     "install": [
         {
