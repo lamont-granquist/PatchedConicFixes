@@ -1,6 +1,11 @@
 # PatchedConicFixes
 
-A Kerbal Space Program mod that fixes issues with patched conic trajectories.
+Fixes several bugs in KSP 1.12.x's patched conic trajectory system that cause SOI
+encounters to go undetected, even when your ship is on a clear intercept course.
+A few examples of affected scenarios include problems with flickering orbits
+around Jool, and transfers to an ascending Moon in RealSolarSystem, and many
+others. The replacement encounter solver is also approximately 5× faster than
+the stock implementation.
 
 ## Requirements
 
