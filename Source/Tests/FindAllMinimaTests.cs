@@ -22,7 +22,7 @@ namespace PatchedConicFixes.Tests
             var o1 = new COrbitData(386102172.159263, 0.99933864853071519, 1.6178598461249187, 6.2752580854970281, 0.31441741545137758);
             var o2 = new COrbitData(443719754.5067898, 0, 0, 0, 0);
 
-            Baluev.MoidInfo* info = stackalloc Baluev.MoidInfo[4];
+            Baluev.MoidInfo* info = stackalloc Baluev.MoidInfo[6];
 
             int num = Baluev.FindAllMinima(o1, o2, info);
 

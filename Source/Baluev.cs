@@ -1009,8 +1009,8 @@ namespace PatchedConicFixes
 
             for (int i = 0; i < DEG; i++)
             {
-                // we should be absolutely done finding minima after 4, no solutions with 5+ are known.
-                if (rootCount >= 4) break;
+                // we should be absolutely done finding minima after 6, only solutions with 12 real roots are known.
+                if (rootCount >= 6) break;
 
                 double rooterr = RootError(DEG, c, cerr, roots[i]) * NU;
 

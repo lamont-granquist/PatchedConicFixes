@@ -75,19 +75,22 @@ namespace PatchedConicFixes.Tests
         public void FixedByMoidDeduplication(int seed) => RandomlyConstructedEncounter(seed);
 
         [Theory]
+        [InlineData(16949)]
+        [InlineData(42106)]
+        [InlineData(4223)]
+        public void FixedBySixMinima(int seed) => RandomlyConstructedEncounter(seed);
+
+        [Theory]
         [InlineData(13907)]
         [InlineData(14235)]
         [InlineData(14659)]
         [InlineData(16239)]
-        [InlineData(16949)]
         [InlineData(17663)]
         [InlineData(18067)]
         [InlineData(25503)]
         [InlineData(30056)]
         [InlineData(36413)]
         [InlineData(3698)]
-        [InlineData(42106)]
-        [InlineData(4223)]
         [InlineData(42650)]
         [InlineData(5206)]
         public void BrokenTestsTodo(int seed) => RandomlyConstructedEncounter(seed);
