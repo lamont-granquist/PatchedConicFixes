@@ -35,5 +35,28 @@ namespace PatchedConicFixes.Tests
             result.u1Error.ShouldEqual(9.910191270109278e-16, 1e-15);
             result.u2Error.ShouldEqual(1.0581479243090316e-15, 1e-15);
         }
+
+        [Fact]
+        public void NearParabolicVesselTest()
+        {
+            Logger.Register(o => _testOutputHelper.WriteLine((string)o));
+
+            // a = semi-major axis, e = eccentricity, i = inclination,
+            // w = argument of periapsis, Om = longitude of ascending node
+            var o1 = new COrbitData(386102172.159263, 0.99933864853071519, 1.6178598461249187, 6.2752580854970281, 0.31441741545137758);
+            var o2 = new COrbitData(443719754.5067898, 0, 0, 0, 0);
+
+            SMOIDResult result = Baluev.MOID_fast(in o1, in o2);
+
+            //Assert.True(result.good, "Result should be marked as reliable");
+
+            result.distance.ShouldEqual( 10352230.116709549, 1e-14);
+            result.u1.ShouldEqual(-1.7213652874914271, 1e-15);
+            result.u2.ShouldEqual( -2.8282736248013554, 1e-15);
+            result.rootCount.ShouldEqual(12);
+            result.distanceError.ShouldEqual(2.787539797647343e-07, 1e-15);
+            result.u1Error.ShouldEqual(1.0876683191309692e-15, 1e-15);
+            result.u2Error.ShouldEqual(9.783818447810477e-16, 1e-15);
+        }
     }
 }
