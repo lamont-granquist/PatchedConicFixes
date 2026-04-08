@@ -168,15 +168,12 @@ namespace PatchedConicFixes.Tests
             vesselOrbit.UpdateFromStateVectors(vesselPos, vesselVel, parent, tEnc);
             double vesselPeriod = vesselOrbit.period;
 
-            /*
-            _output.WriteLine($"Seed {seed}: parentMu={parentMu:E3} moonSma={moonSma:E3} moonSoi={moonSoi:E3}");
+            //_output.WriteLine($"Seed {seed}: parentMu={parentMu:E3} moonSma={moonSma:E3} moonSoi={moonSoi:E3}");
             _output.WriteLine($"  vesselOrbit: e={vesselOrbit.eccentricity:F6} sma={vesselOrbit.semiMajorAxis:E3} period={vesselPeriod:F1}");
-            _output.WriteLine($"  tEnc={tEnc:F3} moonPeriod={moonPeriod:F1}");
-
+            //_output.WriteLine($"  tEnc={tEnc:F3} moonPeriod={moonPeriod:F1}");
 
             Logger.Print($"{Helpers.OrbitDataString(moonOrbit)}");
             Logger.Print($"{Helpers.OrbitDataString(vesselOrbit)}");
-            */
 
             // --- Try 10 different rewind amounts ---
             int failures = 0;
