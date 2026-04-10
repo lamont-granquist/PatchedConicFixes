@@ -457,48 +457,14 @@ namespace PatchedConicFixes
         /// <returns>The closest approach distance found within the search window.</returns>
         public static double GetClosestApproach(Orbit p, Orbit s, double startEpoch, double maxDT, PatchedConics.SolverParameters pars)
         {
-            double maxUT;
+            // The function of GetClosestApproach() has been moved into ValidateSOICrossingTime() called from EncountersBody()
 
-            if (p.eccentricity < 1.0)
-            {
-                // Elliptical orbit: search one full period of the orbit.
-                maxUT = startEpoch + p.period;
-            }
-            else
-            {
-                // Vessel is on a hyperbolic orbit
-                double taForSOI;
-
-                // Handle the case where the reference body is the root (e.g. Kerbin/Sun)
-                if (double.IsInfinity(p.referenceBody.sphereOfInfluence))
-                {
-                    if (s.eccentricity < 1.0)
-                        // Transfer to a closed orbit (a Planet)
-                        // XXX: this function doesn't have access to the planet's SOI, just its orbit, so use 3*SMA rather than Apoapsis+SOI
-                        // (this should not be buggy and not important enough to change the method signature to fix)
-                        taForSOI = p.TrueAnomalyAtRadius(s.semiMajorAxis * 3.0);
-                    else
-                        // Both orbits are hyperbolic (transfer to a "Comet"):  Just use a very large distance.
-                        taForSOI = p.TrueAnomalyAtRadius(pars.outerReaches);
-                }
-                else
-                {
-                    // Ejection out of a Planet/Moon SOI: use the SOI transition as the natural end point of the search.
-                    taForSOI = p.TrueAnomalyAtRadius(p.referenceBody.sphereOfInfluence);
-                }
-
-                // Note that by accident or design TrueAnomalyAtRadius() always gives positive TA, so picks the departure
-                // hyperbola correctly, so once we're past this point, we're leaving forever...
-                double utForSOI = p.GetUTforTrueAnomaly(taForSOI, 0.0);
-                maxUT = utForSOI;
-            }
-
-            // Refine the geometric closest approach into the time domain closest approach using the bounds
-            return SolveClosestApproach(p, s, ref p.UTappr, maxDT, 0.0, startEpoch, maxUT, pars.epsilon, pars.maxTimeSolverIterations, ref pars.TimeSolverIterations1);
+            // Refine the geometric closest approach into the time domain closest approach
+            return SolveClosestApproach(p, s, ref p.UTappr, maxDT, double.NaN, double.NaN, double.NaN, pars.epsilon, pars.maxTimeSolverIterations, ref pars.TimeSolverIterations1);
         }
 
         /// <summary>
-        /// Lighter weight helper than Orbit.RelativeStateAtUT().  Beware that rstate only has valid pos and vel.
+        ///     Lighter weight helper than Orbit.RelativeStateAtUT().  Beware that rstate only has valid pos and vel.
         /// </summary>
         /// <param name="p"></param>
         /// <param name="s"></param>
@@ -545,9 +511,9 @@ namespace PatchedConicFixes
         ///     On exit, the converged UT of the closest approach found.
         /// </param>
         /// <param name="maxDT">Maximum clamp on the timestep that the Halley solver can take.</param>
-        /// <param name="threshold">Unused (from previous bisection implementation)</param>
-        /// <param name="minUT">Earliest allowed UT (start of the current patch).</param>
-        /// <param name="maxUT">Latest allowed UT (end of the search window).</param>
+        /// <param name="threshold">Unused.</param>
+        /// <param name="minUT">Unused.</param>
+        /// <param name="maxUT">Unused.</param>
         /// <param name="epsilon">Convergence threshold — iteration stops when |dT| &lt; epsilon.</param>
         /// <param name="maxIterations">Hard iteration cap across all phases combined.</param>
         /// <param name="iterationCount">On exit, the total number of state evaluations performed.</param>
@@ -575,9 +541,9 @@ namespace PatchedConicFixes
             double probe = ut, probe1 = ut, probe2 = ut;
             while (true)
             {
-                probe2   = probe1;
-                probe1   = probe;
-                probe    = ut + step;
+                probe2      = probe1;
+                probe1      = probe;
+                probe       = ut + step;
                 (_, rdv, _) = GetRdvAtUT(p, s, probe);
                 if (rdv * startSign <= 0)
                 {
@@ -595,9 +561,9 @@ namespace PatchedConicFixes
                     break;
                 }
 
-                probe2   = probe1;
-                probe1   = probe;
-                probe    = ut - step;
+                probe2      = probe1;
+                probe1      = probe;
+                probe       = ut - step;
                 (_, rdv, _) = GetRdvAtUT(p, s, probe);
                 if (rdv * startSign <= 0)
                 {
@@ -686,11 +652,50 @@ namespace PatchedConicFixes
             }
 
             if (iterationCount >= maxIterations && GameSettings.VERBOSE_DEBUG_LOG && !Thread.CurrentThread.IsBackground)
-            {
                 Debug.Log("[Orbit] SolveClosestApproach: solve took too many iterations, result incorrect");
-            }
 
             return state.rstate.pos.magnitude;
+        }
+
+        private static bool ValidateSOICrossingTime(Orbit p, Orbit s, double startEpoch, double UTsoi, PatchedConics.SolverParameters pars)
+        {
+            double maxUT;
+
+            if (p.eccentricity < 1.0)
+            {
+                // Elliptical orbit: search one full period of the orbit.
+                maxUT = startEpoch + p.period;
+            }
+            else
+            {
+                // Vessel is on a hyperbolic orbit
+                double taForSOI;
+
+                // Handle the case where the reference body is the root (e.g. Kerbin/Sun)
+                if (double.IsInfinity(p.referenceBody.sphereOfInfluence))
+                {
+                    if (s.eccentricity < 1.0)
+                        // Transfer to a closed orbit (a Planet)
+                        // XXX: this function doesn't have access to the planet's SOI, just its orbit, so use 3*SMA rather than Apoapsis+SOI
+                        // (this should not be buggy and not important enough to change the method signature to fix)
+                        taForSOI = p.TrueAnomalyAtRadius(s.semiMajorAxis * 3.0);
+                    else
+                        // Both orbits are hyperbolic (transfer to a "Comet"):  Just use a very large distance.
+                        taForSOI = p.TrueAnomalyAtRadius(pars.outerReaches);
+                }
+                else
+                {
+                    // Ejection out of a Planet/Moon SOI: use the SOI transition as the natural end point of the search.
+                    taForSOI = p.TrueAnomalyAtRadius(p.referenceBody.sphereOfInfluence);
+                }
+
+                // Note that by accident or design TrueAnomalyAtRadius() always gives positive TA, so picks the departure
+                // hyperbola correctly, so once we're past this point, we're leaving forever...
+                double utForSOI = p.GetUTforTrueAnomaly(taForSOI, 0.0);
+                maxUT = utForSOI;
+            }
+
+            return UTsoi < maxUT || UTsoi > startEpoch;
         }
 
         // EncountersBody — PatchedConics.cs
@@ -710,7 +715,6 @@ namespace PatchedConicFixes
         //
         // Returns true  → encounter confirmed; p and nextPatch have been fully committed.
         // Returns false → no encounter this window.
-
         public static bool EncountersBody(Orbit p, Orbit s, Orbit nextPatch, OrbitDriver sec, double startEpoch, PatchedConics.SolverParameters pars)
         {
             // A sentinel value of -1 means SolveClosestApproach failed.
@@ -751,6 +755,9 @@ namespace PatchedConicFixes
                     pars.epsilon,                        // convergence tolerance
                     pars.maxTimeSolverIterations,
                     ref pars.TimeSolverIterations1); // iteration counter (diagnostics)
+
+                if (!ValidateSOICrossingTime(p, s, startEpoch, p.UTsoi, pars))
+                    return false;
 
                 // -------------------------------------------------------------------
                 // PHASE 2 — Validate approach direction at the SOI crossing time.
@@ -813,22 +820,18 @@ namespace PatchedConicFixes
         }
 
         /// <summary>
-        /// Finds the time at which the relative distance between orbits p and s equals rsoi.
-        ///
-        /// Uses a Newton step (dT = (rsoi² - r²) / (2 * rdv)) with fallback to bisection when
-        /// the Newton step would leave the bracket, eliminating limit cycles.  Converges to
-        /// machine precision or maxIterations, whichever comes first.
-        ///
-        /// Callers MUST supply minUT and maxUT as a valid bracket: the relative distance at
-        /// minUT must be outside rsoi and at maxUT must be inside (or vice versa).  This is
-        /// guaranteed by the encounter detection pipeline which only calls SolveSOI after
-        /// confirming an SOI crossing exists within the interval.
-        ///
-        /// The ut parameter is the output time of the SOI crossing.
-        ///
-        /// The dT and epsilon parameters are unused (dT was always scratch; epsilon is
-        /// superseded by the NearlyEqual convergence test -- the precision was chosen to hit
-        /// almost always 2-4 rounds).
+        ///     Finds the time at which the relative distance between orbits p and s equals rsoi.
+        ///     Uses a Newton step (dT = (rsoi² - r²) / (2 * rdv)) with fallback to bisection when
+        ///     the Newton step would leave the bracket, eliminating limit cycles.  Converges to
+        ///     machine precision or maxIterations, whichever comes first.
+        ///     Callers MUST supply minUT and maxUT as a valid bracket: the relative distance at
+        ///     minUT must be outside rsoi and at maxUT must be inside (or vice versa).  This is
+        ///     guaranteed by the encounter detection pipeline which only calls SolveSOI after
+        ///     confirming an SOI crossing exists within the interval.
+        ///     The ut parameter is the output time of the SOI crossing.
+        ///     The dT and epsilon parameters are unused (dT was always scratch; epsilon is
+        ///     superseded by the NearlyEqual convergence test -- the precision was chosen to hit
+        ///     almost always 2-4 rounds).
         /// </summary>
         public static bool SolveSOI(Orbit p, Orbit s, ref double ut, double unused2, double rsoi, double minUT, double maxUT, double unused3, int maxIterations, ref int iterationCount)
         {
@@ -847,7 +850,7 @@ namespace PatchedConicFixes
             UtilMath.SphereIntersection(rsoi, rstate.pos, rstate.vel, out double dT, false);
             ut = Math.Max(minUT, maxUT + dT);
 
-            double rsoi2  = rsoi * rsoi;
+            double rsoi2 = rsoi * rsoi;
 
             while (iterationCount++ < maxIterations)
             {
