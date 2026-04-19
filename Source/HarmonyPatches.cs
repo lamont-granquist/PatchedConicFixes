@@ -195,6 +195,20 @@ namespace PatchedConicFixes
                 double bestClAppr = double.PositiveInfinity;
                 double bestUTappr = 0;
 
+                if (p.eccentricity < 1.0)
+                {
+                    // try wrapping around the beginning of the orbit to try the last MOID with a seed one period in the past.
+                    Baluev.MoidInfo wrappedInfo = info[num-1];
+                    wrappedInfo.tt -= p.period;
+                    wrappedInfo.ut =  startEpoch + wrappedInfo.tt;
+
+                    if ((alwaysShowMarkers || !(wrappedInfo.dst >= sec.celestialBody.sphereOfInfluence)) && !double.IsInfinity(wrappedInfo.ut))
+                    {
+                        if (CheckGeometricalEncounter(p, nextPatch, startEpoch, sec, pars, wrappedInfo, s, ref bestClAppr, ref bestUTappr))
+                            return true;
+                    }
+                }
+
                 for (int i = 0; i < num; i++)
                 {
                     if ((!alwaysShowMarkers && info[i].dst >= sec.celestialBody.sphereOfInfluence) || double.IsInfinity(info[i].ut))

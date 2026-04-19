@@ -58,6 +58,11 @@ namespace PatchedConicFixes.Tests
         public void EncounterMOIDIsAfterOnePeriod(int seed) => RandomlyConstructedEncounter(seed);
 
         [Theory]
+        [InlineData(17663)]
+        [InlineData(25503)]
+        public void EncounterMOIDIsBeforeOnePeriod(int seed) => RandomlyConstructedEncounter(seed);
+
+        [Theory]
         [InlineData(12703)]
         [InlineData(14619)]
         [InlineData(35111)]
@@ -85,9 +90,7 @@ namespace PatchedConicFixes.Tests
         [InlineData(14235)]
         [InlineData(14659)]
         [InlineData(16239)]
-        [InlineData(17663)]
         [InlineData(18067)]
-        [InlineData(25503)]
         [InlineData(30056)]
         [InlineData(36413)]
         [InlineData(3698)]
