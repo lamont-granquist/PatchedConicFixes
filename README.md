@@ -9,9 +9,20 @@ with flickering orbits around Jool, and transfers to an ascending Moon in
 RealSolarSystem, and many others. The replacement encounter solver is also
 approximately 5× faster than the stock implementation.
 
+## Known Limitations
+
+This implementation has known failure conditions that stem from fundamental design
+choices in the algorithm (shared with the old KSP implementation).  A meaningful fix
+would require a ground-up rewrite (which is just dependent upon enough free time).
+
+If you encounter still buggy behavior, it's quite likely a known issue. For the time being
+bug reports for this mod are unnecessary.
+
 ## Requirements
 
 - Kerbal Space Program 1.12.x
+- KSPBurst (1.7.2 or compatible)
+- Harmony (2.2.1 or compatible)
 
 ## Installation
 
