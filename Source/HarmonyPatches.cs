@@ -141,8 +141,10 @@ namespace PatchedConicFixes
 
                 int num = Baluev.FindAllMinima(o1, o2, info);
 
+                /*
                 for (int i = 0; i < 6; i++)
                     Logger.Print($"{num} {info[i].dst} {info[i].u1} {info[i].u2}");
+                    */
 
                 // perfectly circular coplanar orbit check.
                 if (num < 1)
