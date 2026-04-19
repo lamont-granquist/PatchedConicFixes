@@ -18,6 +18,10 @@ would require a ground-up rewrite (which is just dependent upon enough free time
 If you encounter still buggy behavior, it's quite likely a known issue. For the time being
 bug reports for this mod are unnecessary.
 
+In a sample of 50,000 randomly generated elliptical orbits, this mod reduces the stock
+KSP 1.12.x rate of over 14,000 orbits with failures down to only 10 failing orbits.  It
+should still be worth using, it just isn't absolutely perfect.
+
 ## Requirements
 
 - Kerbal Space Program 1.12.x
