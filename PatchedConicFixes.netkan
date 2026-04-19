@@ -1,6 +1,6 @@
 {
     "spec_version": "v1.4",
-    "$kref": "#/ckan/github/REPLACE_ME/PatchedConicFixes",
+    "$kref": "#/ckan/github/lamont-granquist/PatchedConicFixes",
     "name": "PatchedConicFixes",
     "abstract": "Fixes issues with patched conic trajectories in KSP",
     "author": [ "Lamont Granquist" ],
