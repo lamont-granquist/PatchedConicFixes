@@ -70,7 +70,7 @@ MIT
 
 ## Changes to KSP APIs
 
-### Orbit.FindClosestPoints() and the Targetting class
+### Orbit.FindClosestPoints() and the Targeting class
 
 This algorithm finds the closest points between two conic sections.  It was entirely replaced by an algorithm
 by Baluev and Mikryukov:
@@ -92,7 +92,7 @@ still behaves the same way, there are two other references to it in the codebase
 ### CheckEncounter()
 
 This now runs through all minima returned by the Baluev algorithm that survive a filter on the SOI radius, ordered by transit time to the minima point
-from the current vessel position.  The alogorithm additional tries the last one first (minus a hole period) and the first one last (plus a whole period).
+from the current vessel position.  The algorithm additionally tries the last one first (minus a whole period) and the first one last (plus a whole period).
 This can find some crossings where the MOID point is e.g. back in time, but the time-domain actual SOI crossing still lies in the future of the Vessel.
 Doing this work is necessary for correctness, every possible geometrical approach should be checked in order.
 
@@ -128,6 +128,12 @@ The whole MOID-solving approach probably should be rejected, or kept only as a b
 The biggest problem is orbits where the Vessel is nearly in the same Orbit as the CelestialBody.  In that case you could have every point in the Vessel Orbit
 potentially close enough to be within the SOI of the CelestialBody, only with slightly different periods.  In that case, you could get an SOI crossing anywhere
 and the MOID gives no information and seeding guesses at the MOID points is likely to miss actual time-domain SOI crossings.
+
+Another problem is that the geometrical MOID point can be associated with at least two minima in the
+time domain distance function.  If the expanding bracket picks the wrong one, then the correct encounter is not found.
+
+Both of these problems start to point at the underlying issue of the geometrical MOID solution not really being a good source of truth
+for where the actual closest approaches are on the orbit tracks, in the most general cases.
 
 What should probably happen instead is implementing the cross track and synodic prefilters from:
 
