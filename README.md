@@ -144,3 +144,25 @@ the derivative crosses zero (replacing the algorithm in SolveClosestApproach()) 
 
 - Denenberg E. Satellite closest approach calculation through Chebyshev Proxy Polynomials. Acta Astronautica. 2020 May;170:55–65. doi:10.1016/j.actaastro.2020.01.020
 
+## Local development and candidate installation
+
+Configure the KSP assembly and GameData paths in the gitignored `Source/Directory.Build.props.user`, as described in `Source/Directory.Build.props`. On a Windows 64-bit installation the assembly directory is normally `KSP_x64_Data/Managed`.
+
+Builds and tests do not deploy into the running game's installation by default. For isolated test output in PowerShell:
+
+```powershell
+$candidateOutput = Join-Path $PWD 'build/candidate/'
+dotnet test Source/Tests/PatchedConicFixes.Tests.csproj -c Release "-p:OutputPath=$candidateOutput"
+```
+
+The current upstream suite has known failures; candidate validation must compare its failure set with the unchanged baseline. See `docs/intercept-recursion-plan.md` for the investigation scope.
+
+Install an explicitly chosen artifact with KSP closed:
+
+```powershell
+./scripts/install-candidate.ps1 -CandidateDll ./build/candidate/PatchedConicFixes.dll -KspDirectory '<KSP installation directory>'
+```
+
+The installer checks that KSP is closed, backs up the previous DLL, verifies the installed hash, and records an installation manifest under `build/install-backups`. Restore a previous DLL by passing that backup as `-CandidateDll` to the same installer while KSP is closed.
+
+`-p:DeployToKSP=true` also explicitly enables the original build deployment target, but the installation script provides the process check and backup.

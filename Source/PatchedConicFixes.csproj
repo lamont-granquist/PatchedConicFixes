@@ -10,6 +10,8 @@
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <!-- Building and running tests must not replace the live game's DLL. -->
+        <DeployToKSP Condition="'$(DeployToKSP)' == ''">false</DeployToKSP>
     </PropertyGroup>
     <ItemGroup>
         <Compile Remove="Tests/**"/>
@@ -47,7 +49,7 @@
             <Private>false</Private>
         </Reference>
     </ItemGroup>
-    <Target Name="DeployToKSP" AfterTargets="Build">
+    <Target Name="DeployToKSP" AfterTargets="Build" Condition="'$(DeployToKSP)' == 'true'">
         <Copy
             SourceFiles="$(OutputPath)$(AssemblyName).dll"
             DestinationFolder="$(KSPGameData)/PatchedConicFixes/Plugins/"
