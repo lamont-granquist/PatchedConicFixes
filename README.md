@@ -123,6 +123,8 @@ the derivative function.  This was validated to fix some real world reported orb
 
 ## Future Work
 
+The interval-subdivision correction in the current candidate fixes a specific angular-wrap defect that could make the stock recursive search expand instead of shrink an interval across the true-anomaly seam. It improves that search's progress in this case, but it does not replace the MOID-based approach or address the broader limitations described below. The near-co-orbital case, multiple time-domain minima, and the proposed cross-track/synodic prefilters and Chebyshev time-domain search remain future work.
+
 The whole MOID-solving approach probably should be rejected, or kept only as a boolean prefilter.
 
 The biggest problem is orbits where the Vessel is nearly in the same Orbit as the CelestialBody.  In that case you could have every point in the Vessel Orbit
