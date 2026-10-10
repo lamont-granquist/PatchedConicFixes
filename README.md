@@ -64,6 +64,20 @@ dotnet build
 
 The compiled DLL will be placed in `GameData/PatchedConicFixes/Plugins/`.
 
+### Tests
+
+The tests must run on the same Mono runtime as KSP, since different runtimes give different numerical results (Homebrew's arm64
+Mono 6.14 breaks the Baluev solver entirely).  KSP 1.12 embeds Unity's Mono fork, and the Unity 2019.4.18f1 editor ships the same
+build, so install that editor version with Unity Hub and run:
+
+```
+Source/Tests/run-tests.sh
+```
+
+Set `KSP_MONO` to the `bin` directory of a different Mono install to use that instead.  In Rider, set the Mono executable under
+Settings > Build, Execution, Deployment > Toolset and Build to
+`/Applications/Unity/Hub/Editor/2019.4.18f1/Unity.app/Contents/MonoBleedingEdge/bin/mono`.
+
 ## License
 
 MIT
@@ -147,3 +161,7 @@ the derivative crosses zero (replacing the algorithm in SolveClosestApproach()) 
 
 - Denenberg E. Satellite closest approach calculation through Chebyshev Proxy Polynomials. Acta Astronautica. 2020 May;170:55–65. doi:10.1016/j.actaastro.2020.01.020
 
+### Testing Node
+
+Ideally tests should be run on `x86_64` Mono 5.11.0.  I've found that `x86_64` Mono 6.12.x sufficiently replicates behavior.  I've found that `amd64` (Apple Silicon)
+Mono 6.14.x produces several hundred spurious test failures.
