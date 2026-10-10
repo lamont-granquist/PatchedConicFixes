@@ -22,6 +22,8 @@ namespace PatchedConicFixes
             var harmony = new Harmony("PatchedConicFixes");
             harmony.PatchAll();
             Debug.Log("[PatchedConicFixes] Harmony patches applied.");
+
+            FindClosestPointsAdapter.Install();
         }
 
         private void Update() => _dispatcher.ProcessActions();
