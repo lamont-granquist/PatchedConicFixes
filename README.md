@@ -86,8 +86,11 @@ papers and solves it via Newton root finding and deflation using the tuned initi
 I believe there can be only 4 actual minima, but up to 6 "distinct" points were returned in some cases, likely due to degenerate roots which escaped
 the de-duplication checker.  I don't think more than 12 real roots can exist in this problem so 6 should be a correct upper limit.
 
-Since we definitely need at least 3 minima, even with an SOI filter, the old FindClosestPoints() API couldn't be fixed.  The code is still there, it
-still behaves the same way, there are two other references to it in the codebase.
+Since we definitely need at least 3 minima, even with an SOI filter, the old FindClosestPoints() API couldn't be fixed and CheckEncounter() calls
+the Baluev solver directly.  The Orbit.FindClosestPoints delegate is still pointed at the Baluev solver so that the old Targeting code is no longer
+reachable, but that API can only return two minima, so it returns the two with the smallest distance.  The two stock callers of it, the intercept
+markers in map view (OrbitTargeter) and the Intercept tab of the maneuver node editor (OrbitUtil.CalculateIntersections()), can only display two
+intercepts, so they are patched to choose the two minima where the target vessel will actually be closest as the vessel passes them.
 
 ### CheckEncounter()
 

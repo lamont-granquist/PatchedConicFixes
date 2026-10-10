@@ -66,6 +66,40 @@ namespace PatchedConicFixes
         public static string OrbitString(Orbit o) => $"{o.inclination}, {o.eccentricity}, {o.semiMajorAxis}, {o.LAN}, {o.argumentOfPeriapsis}, {o.meanAnomalyAtEpoch}, {o.epoch}";
 
         /// <summary>
+        ///     Runs Baluev's geometric MOID solver on the two orbits and resolves the true anomalies (ta1 on p, ta2 on s) of
+        ///     every minimum it finds.  The dst, u1, u2, ta1 and ta2 fields of each result are filled in.
+        ///     Minima with an infinite eccentric/hyperbolic anomaly are dropped, since GetTrueAnomaly() would silently map those
+        ///     onto the hyperbolic asymptote and they would look like real points on the orbit.
+        /// </summary>
+        /// <param name="p">The primary orbit</param>
+        /// <param name="s">The secondary orbit</param>
+        /// <param name="info">Caller-provided buffer with room for at least 6 minima</param>
+        /// <returns>The number of minima written to info</returns>
+        public static unsafe int FindMoidMinima(Orbit p, Orbit s, Baluev.MoidInfo* info)
+        {
+            // a = semi-major axis, e = eccentricity, i = inclination,
+            // w = argument of periapsis, Om = longitude of ascending node
+            var o1 = new COrbitData(p.semiMajorAxis, p.eccentricity, Deg2Rad(p.inclination), Deg2Rad(p.argumentOfPeriapsis), Deg2Rad(p.LAN));
+            var o2 = new COrbitData(s.semiMajorAxis, s.eccentricity, Deg2Rad(s.inclination), Deg2Rad(s.argumentOfPeriapsis), Deg2Rad(s.LAN));
+
+            int num = Baluev.FindAllMinima(o1, o2, info);
+
+            int count = 0;
+            for (int i = 0; i < num; i++)
+            {
+                if (!IsFinite(info[i].u1) || !IsFinite(info[i].u2))
+                    continue;
+
+                info[count]     = info[i];
+                info[count].ta1 = p.GetTrueAnomaly(info[i].u1);
+                info[count].ta2 = s.GetTrueAnomaly(info[i].u2);
+                count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>
         ///     Determines whether the primary orbit encounters (enters the SOI of) the given celestial body.
         ///     This is the main encounter detection entry point, implementing a multi-stage filter pipeline:
         ///     Stage 1: Pe/Ap prefilter: Checks whether the altitude bands of the two orbits overlap
@@ -131,14 +165,9 @@ namespace PatchedConicFixes
                  * This is now Baluev's solver and returns up to 4 minima (which should be as many as have ever been found?)
                  */
 
-                // a = semi-major axis, e = eccentricity, i = inclination,
-                // w = argument of periapsis, Om = longitude of ascending node
-                var o1 = new COrbitData(p.semiMajorAxis, p.eccentricity, Deg2Rad(p.inclination), Deg2Rad(p.argumentOfPeriapsis), Deg2Rad(p.LAN));
-                var o2 = new COrbitData(s.semiMajorAxis, s.eccentricity, Deg2Rad(s.inclination), Deg2Rad(s.argumentOfPeriapsis), Deg2Rad(s.LAN));
-
                 Baluev.MoidInfo* info = stackalloc Baluev.MoidInfo[6];
 
-                int num = Baluev.FindAllMinima(o1, o2, info);
+                int num = FindMoidMinima(p, s, info);
 
                 /*
                 for (int i = 0; i < 6; i++)
@@ -153,10 +182,6 @@ namespace PatchedConicFixes
 
                     return false;
                 }
-
-                // resolve the true anomalies for the primary
-                for (int i = 0; i < num; i++)
-                    info[i].ta1 = p.GetTrueAnomaly(info[i].u1);
 
                 // calculate the transit time
                 for (int i = 0; i < num; i++)
@@ -184,10 +209,6 @@ namespace PatchedConicFixes
 
                     info[j + 1] = keyInfo;
                 }
-
-                // resolve true anomalies for secondary
-                for (int i = 0; i < num; i++)
-                    info[i].ta2 = s.GetTrueAnomaly(info[i].u2);
 
                 // resolve UT of geometric point
                 for (int i = 0; i < num; i++)
@@ -316,7 +337,8 @@ namespace PatchedConicFixes
                 double SEVp    = p.SEVp;
                 double SEVs    = p.SEVs;
 
-                int num = Orbit.FindClosestPoints(p, s, ref ClEctr1, ref ClEctr2, ref FEVp, ref FEVs, ref SEVp, ref SEVs, 0.0001, pars.maxGeometrySolverIterations, ref pars.GeoSolverIterations);
+                // This calls the stock solver directly, since the Orbit.FindClosestPoints delegate now points at Baluev's solver.
+                int num = Orbit._FindClosestPoints(p, s, ref ClEctr1, ref ClEctr2, ref FEVp, ref FEVs, ref SEVp, ref SEVs, 0.0001, pars.maxGeometrySolverIterations, ref pars.GeoSolverIterations);
 
                 //Logger.Print($"ClEctr1: {ClEctr1} ClEctr2: {ClEctr2} FEVp: {FEVp} FEVs: {FEVs} SEVp: {SEVp} SEVs: {SEVs}");
 
