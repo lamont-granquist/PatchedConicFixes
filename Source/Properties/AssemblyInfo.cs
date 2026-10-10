@@ -8,8 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("")]
 [assembly: ComVisible(false)]
 [assembly: Guid("D0503AAD-78A1-4962-BA59-5FB2F384C0E3")]
-[assembly: AssemblyVersion("0.1.4.0")]
-[assembly: AssemblyFileVersion("0.1.4.0")]
+[assembly: AssemblyVersion("0.1.4.1")]
+[assembly: AssemblyFileVersion("0.1.4.1")]
+[assembly: AssemblyInformationalVersion("0.1.4-intercept-candidate.1")]
 
 [assembly: KSPAssemblyDependency("KSPBurst", 0, 0)]
 [assembly: KSPAssemblyDependency("0Harmony", 0, 0)]

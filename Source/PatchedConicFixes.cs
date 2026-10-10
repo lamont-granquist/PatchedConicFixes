@@ -21,7 +21,8 @@ namespace PatchedConicFixes
         {
             var harmony = new Harmony("PatchedConicFixes");
             harmony.PatchAll();
-            Debug.Log("[PatchedConicFixes] Harmony patches applied.");
+            Debug.Log("[PatchedConicFixes] " + typeof(PatchedConicFixes).Assembly.GetName().Version
+                + " Harmony patches applied; Targeting subdivision wrap correction active.");
         }
 
         private void Update() => _dispatcher.ProcessActions();
