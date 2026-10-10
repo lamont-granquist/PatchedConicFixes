@@ -19,8 +19,7 @@ namespace PatchedConicFixes
     {
         static bool Prefix(Orbit p, Orbit nextPatch, double startEpoch, OrbitDriver sec, CelestialBody targetBody, PatchedConics.SolverParameters pars, bool logErrors, ref bool __result)
         {
-            //__result = HarmonyPatches.CheckEncounter(p, nextPatch, startEpoch, sec, targetBody, pars, logErrors);
-            __result = HarmonyPatches.CheckEncounterOldMOID(p, nextPatch, startEpoch, sec, targetBody, pars, logErrors);
+            __result = HarmonyPatches.CheckEncounter(p, nextPatch, startEpoch, sec, targetBody, pars, logErrors);
 
             return false;
         }
