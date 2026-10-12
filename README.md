@@ -64,6 +64,16 @@ dotnet build
 
 The compiled DLL will be placed in `GameData/PatchedConicFixes/Plugins/`.
 
+### Celestial-body approach display
+
+The stock Approach panel can skip a celestial-body encounter when intersection
+calculations between orbits centred on different bodies are rejected. The display
+correction follows the existing active future patch chain and displays the target
+body's periapsis altitude and time. In maneuver edit mode it starts from the selected
+node's future orbit. Missing encounters and vessel targets retain the original display.
+This changes only the stock Approach readout; Baluev, encounter solving, map trajectories,
+and MechJeb's separate Rendezvous Planner readout are unchanged.
+
 ## License
 
 MIT
